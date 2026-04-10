@@ -23,45 +23,43 @@ if (protectedPages.includes(currentPage)) {
 }
 
 // =========================
-// RECORDAR USUARIO
+// RECORDAR USUARIO + LOGIN
 // =========================
 document.addEventListener("DOMContentLoaded", () => {
-  const savedUser = localStorage.getItem("rememberedUser");
+
   const userInput = document.getElementById("user");
+  const passInput = document.getElementById("pass");
+  const loginBtn = document.getElementById("loginBtn");
+  const error = document.getElementById("error");
   const rememberCheckbox = document.getElementById("rememberUser");
 
+  // recordar usuario
+  const savedUser = localStorage.getItem("rememberedUser");
   if (userInput && savedUser) {
     userInput.value = savedUser;
-    if (rememberCheckbox) {
-      rememberCheckbox.checked = true;
-    }
+    if (rememberCheckbox) rememberCheckbox.checked = true;
   }
 
-  // Mostrar / ocultar contraseña
-const togglePassBtn = document.getElementById("togglePass");
-const passInput = document.getElementById("pass");
+  // mostrar contraseña
+  const togglePass = document.getElementById("togglePass");
+  if (togglePass && passInput) {
+    togglePass.addEventListener("click", () => {
+      if (passInput.type === "password") {
+        passInput.type = "text";
+        togglePass.textContent = "🙈";
+      } else {
+        passInput.type = "password";
+        togglePass.textContent = "👁";
+      }
+    });
+  }
 
-if (togglePassBtn && passInput) {
-  togglePassBtn.addEventListener("click", () => {
-    if (passInput.type === "password") {
-      passInput.type = "text";
-      togglePassBtn.textContent = "🙈";
-    } else {
-      passInput.type = "password";
-      togglePassBtn.textContent = "👁";
-    }
-  });
-}
-
-  // Login
-  const loginBtn = document.getElementById("loginBtn");
-
+  // login
   if (loginBtn) {
     loginBtn.addEventListener("click", () => {
-      const user = document.getElementById("user").value.trim();
-      const pass = document.getElementById("pass").value.trim();
-      const error = document.getElementById("error");
-      const remember = document.getElementById("rememberUser").checked;
+      const user = userInput.value.trim();
+      const pass = passInput.value.trim();
+      const remember = rememberCheckbox?.checked;
 
       if (user.toLowerCase() === USER.toLowerCase() && pass === PASS) {
         localStorage.setItem("logged", "true");
@@ -74,10 +72,13 @@ if (togglePassBtn && passInput) {
 
         window.location.href = "home.html";
       } else {
-        error.textContent = "Usuario o contraseña incorrectos";
+        if (error) error.textContent = "Usuario o contraseña incorrectos";
       }
     });
   }
+
+  setupProductsPage();
+  setupScanPage();
 });
 
 // =========================
@@ -87,9 +88,6 @@ function goTo(page) {
   window.location.href = page;
 }
 
-// =========================
-// CERRAR SESIÓN
-// =========================
 function logout() {
   localStorage.removeItem("logged");
   window.location.href = "index.html";
@@ -107,51 +105,41 @@ function saveProducts(products) {
 }
 
 function renderProducts() {
-  const productsList = document.getElementById("productsList");
-  if (!productsList) return;
+  const list = document.getElementById("productsList");
+  if (!list) return;
 
   const products = getProducts();
 
   if (products.length === 0) {
-    productsList.innerHTML = "<p class='placeholder-text'>Todavía no hay productos cargados.</p>";
+    list.innerHTML = "<p>No hay productos</p>";
     return;
   }
 
-  productsList.innerHTML = products.map(product => `
+  list.innerHTML = products.map(p => `
     <div class="product-item">
-      <strong>${product.name}</strong><br>
-      Código: ${product.code}<br>
-      Stock teórico: ${product.stockTeorico}<br>
-      Stock real: ${product.stockReal ?? 0}<br>
-      Diferencia: ${(product.stockReal ?? 0) - product.stockTeorico}
+      <strong>${p.name}</strong><br>
+      Código: ${p.code}<br>
+      Teórico: ${p.stockTeorico}<br>
+      Real: ${p.stockReal || 0}<br>
+      Dif: ${(p.stockReal || 0) - p.stockTeorico}
     </div>
   `).join("");
 }
 
 function setupProductsPage() {
-  const saveBtn = document.getElementById("saveProductBtn");
-  if (!saveBtn) return;
+  const btn = document.getElementById("saveProductBtn");
+  if (!btn) return;
 
   renderProducts();
 
-  saveBtn.addEventListener("click", () => {
+  btn.addEventListener("click", () => {
     const name = document.getElementById("productName").value.trim();
     const code = document.getElementById("productCode").value.trim();
     const stock = parseInt(document.getElementById("productStock").value);
-    const msg = document.getElementById("productMsg");
 
-    if (!name || !code || isNaN(stock)) {
-      msg.textContent = "Completá nombre, código y stock teórico.";
-      return;
-    }
+    if (!name || !code || isNaN(stock)) return;
 
     const products = getProducts();
-    const existing = products.find(p => p.code === code);
-
-    if (existing) {
-      msg.textContent = "Ya existe un producto con ese código.";
-      return;
-    }
 
     products.push({
       name,
@@ -161,404 +149,124 @@ function setupProductsPage() {
     });
 
     saveProducts(products);
-
-    document.getElementById("productName").value = "";
-    document.getElementById("productCode").value = "";
-    document.getElementById("productStock").value = "";
-
-    msg.textContent = "Producto guardado correctamente.";
     renderProducts();
-    renderScanSummary();
   });
+}
+
+// =========================
+// SONIDO / VIBRACIÓN
+// =========================
+function playBeep(ok = true) {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.frequency.value = ok ? 800 : 200;
+    gain.gain.value = 0.05;
+
+    osc.start();
+    osc.stop(ctx.currentTime + 0.1);
+  } catch {}
+}
+
+function vibrate(ms = 100) {
+  if (navigator.vibrate) navigator.vibrate(ms);
 }
 
 // =========================
 // ESCANEO
 // =========================
-function getLastScan() {
-  return JSON.parse(localStorage.getItem("lastScan")) || null;
+function findProduct(code) {
+  return getProducts().find(p => p.code === code);
 }
 
-function saveLastScan(scan) {
-  localStorage.setItem("lastScan", JSON.stringify(scan));
-}
-
-function clearLastScan() {
-  localStorage.removeItem("lastScan");
-}
-
-function findProductByCode(code) {
+function updateReal(code, val) {
   const products = getProducts();
-  return products.find(product => product.code === code);
-}
+  const p = products.find(x => x.code === code);
+  if (!p) return null;
 
-function updateProductReal(code, amount) {
-  const products = getProducts();
-  const index = products.findIndex(product => product.code === code);
-
-  if (index === -1) return null;
-
-  products[index].stockReal = (products[index].stockReal || 0) + amount;
-
-  if (products[index].stockReal < 0) {
-    products[index].stockReal = 0;
-  }
+  p.stockReal = (p.stockReal || 0) + val;
+  if (p.stockReal < 0) p.stockReal = 0;
 
   saveProducts(products);
-  return products[index];
+  return p;
 }
 
-function showScannedProduct(product) {
-  const scanResult = document.getElementById("scanResult");
-  if (!scanResult) return;
+function processScan(code) {
+  const msg = document.getElementById("scanMsg");
+  const p = findProduct(code);
 
-  document.getElementById("resultName").textContent = product.name;
-  document.getElementById("resultCode").textContent = product.code;
-  document.getElementById("resultTeorico").textContent = product.stockTeorico;
-  document.getElementById("resultReal").textContent = product.stockReal || 0;
-  document.getElementById("resultDiff").textContent = (product.stockReal || 0) - product.stockTeorico;
-
-  scanResult.classList.remove("hidden");
-}
-
-function renderScanSummary() {
-  const summary = document.getElementById("scanSummary");
-  if (!summary) return;
-
-  const products = getProducts();
-
-  if (products.length === 0) {
-    summary.innerHTML = "<p class='placeholder-text'>No hay productos cargados todavía.</p>";
+  if (!p) {
+    msg.textContent = "No encontrado";
+    playBeep(false);
+    vibrate([100,50,100]);
     return;
   }
 
-  summary.innerHTML = products.map(product => `
+  const updated = updateReal(code, 1);
+
+  msg.textContent = "OK";
+  showResult(updated);
+  renderSummary();
+
+  playBeep(true);
+  vibrate(80);
+}
+
+function showResult(p) {
+  document.getElementById("scanResult").classList.remove("hidden");
+  document.getElementById("resultName").textContent = p.name;
+  document.getElementById("resultCode").textContent = p.code;
+  document.getElementById("resultTeorico").textContent = p.stockTeorico;
+  document.getElementById("resultReal").textContent = p.stockReal;
+  document.getElementById("resultDiff").textContent = p.stockReal - p.stockTeorico;
+}
+
+function renderSummary() {
+  const box = document.getElementById("scanSummary");
+  if (!box) return;
+
+  const products = getProducts();
+
+  box.innerHTML = products.map(p => `
     <div class="product-item">
-      <strong>${product.name}</strong><br>
-      Código: ${product.code}<br>
-      Teórico: ${product.stockTeorico}<br>
-      Real: ${product.stockReal || 0}<br>
-      Diferencia: ${(product.stockReal || 0) - product.stockTeorico}
+      ${p.name} → ${p.stockReal || 0}
     </div>
   `).join("");
 }
 
-
-      
-
-  
-
-  if (minusBtn) {
-    minusBtn.addEventListener("click", () => {
-      const code = document.getElementById("resultCode").textContent.trim();
-      if (!code) return;
-
-      const updated = updateProductReal(code, -1);
-      saveLastScan({ code, amount: -1 });
-
-      scanMsg.textContent = "Se restó 1 unidad.";
-      showScannedProduct(updated);
-      renderScanSummary();
-      scanInput.focus();
-    });
-  }
-
-  if (undoBtn) {
-    undoBtn.addEventListener("click", () => {
-      const lastScan = getLastScan();
-
-      if (!lastScan) {
-        scanMsg.textContent = "No hay último escaneo para deshacer.";
-        return;
-      }
-
-      const reverseAmount = lastScan.amount === 1 ? -1 : 1;
-      const updated = updateProductReal(lastScan.code, reverseAmount);
-
-      if (updated) {
-        scanMsg.textContent = "Último escaneo deshecho correctamente.";
-        showScannedProduct(updated);
-        renderScanSummary();
-      }
-
-      clearLastScan();
-      scanInput.focus();
-    });
-  }
-}
-
 // =========================
-// INICIALIZAR PÁGINAS
-// =========================
-document.addEventListener("DOMContentLoaded", () => {
-  setupProductsPage();
-  setupScanPage();
-});
-
-// =========================
-// SONIDO / VIBRACIÓN
-// =========================
-function playBeep(type = "ok") {
-  try {
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-
-    if (type === "ok") {
-      osc.frequency.value = 880;
-      gain.gain.value = 0.05;
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.08);
-    } else {
-      osc.frequency.value = 220;
-      gain.gain.value = 0.06;
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.18);
-    }
-  } catch (error) {
-    // si el navegador bloquea audio automático, no rompe nada
-  }
-}
-
-function vibrateDevice(pattern = 120) {
-  if ("vibrate" in navigator) {
-    navigator.vibrate(pattern);
-  }
-}
-
-function setScanMessage(text, type = "info") {
-  const scanMsg = document.getElementById("scanMsg");
-  if (!scanMsg) return;
-
-  scanMsg.textContent = text;
-  scanMsg.classList.remove("success-msg", "error-msg");
-
-  if (type === "success") {
-    scanMsg.classList.add("success-msg");
-  } else if (type === "error") {
-    scanMsg.classList.add("error-msg");
-  }
-}
-
-// =========================
-// PROCESAR ESCANEO
-// =========================
-function processScannedCode(code) {
-  const cleanCode = String(code).trim();
-  if (!cleanCode) return;
-
-  const found = findProductByCode(cleanCode);
-
-  if (!found) {
-    setScanMessage(`Producto no encontrado: ${cleanCode}`, "error");
-    playBeep("error");
-    vibrateDevice([120, 80, 120]);
-    return;
-  }
-
-  const updated = updateProductReal(cleanCode, 1);
-  saveLastScan({ code: cleanCode, amount: 1 });
-
-  setScanMessage(`Escaneo sumado: ${updated.name}`, "success");
-  showScannedProduct(updated);
-  renderScanSummary();
-  playBeep("ok");
-  vibrateDevice(80);
-}
-
-// =========================
-// CÁMARA
-// =========================
-let html5QrCodeInstance = null;
-let cameraRunning = false;
-let lastCameraScan = "";
-let lastCameraScanTime = 0;
-
-async function startCameraScanner() {
-  const reader = document.getElementById("reader");
-  if (!reader || cameraRunning) return;
-
-  if (typeof Html5Qrcode === "undefined") {
-    setScanMessage("No se cargó la librería de cámara.", "error");
-    return;
-  }
-
-  reader.classList.remove("hidden");
-
-  try {
-    html5QrCodeInstance = new Html5Qrcode("reader");
-
-    await html5QrCodeInstance.start(
-      { facingMode: "environment" },
-      {
-        fps: 10,
-        qrbox: { width: 250, height: 140 },
-        aspectRatio: 1.7778
-      },
-      (decodedText) => {
-        const now = Date.now();
-
-        // evita duplicados instantáneos por lectura repetida de la cámara
-        if (
-          decodedText === lastCameraScan &&
-          now - lastCameraScanTime < 1200
-        ) {
-          return;
-        }
-
-        lastCameraScan = decodedText;
-        lastCameraScanTime = now;
-
-        processScannedCode(decodedText);
-      },
-      () => {
-        // ignoramos errores de lectura continuos
-      }
-    );
-
-    cameraRunning = true;
-    setScanMessage("Cámara activa. Apuntá al código.", "success");
-  } catch (error) {
-    reader.classList.add("hidden");
-    setScanMessage("No se pudo abrir la cámara. Revisá permisos y HTTPS.", "error");
-  }
-}
-
-async function stopCameraScanner() {
-  const reader = document.getElementById("reader");
-  if (!cameraRunning || !html5QrCodeInstance) {
-    if (reader) reader.classList.add("hidden");
-    return;
-  }
-
-  try {
-    await html5QrCodeInstance.stop();
-    await html5QrCodeInstance.clear();
-  } catch (error) {
-    // evitar que rompa si ya estaba cerrada
-  }
-
-  cameraRunning = false;
-  html5QrCodeInstance = null;
-  if (reader) reader.classList.add("hidden");
-  setScanMessage("Cámara detenida.");
-}
-
-// =========================
-// ESCANEO CON PISTOLA / MANUAL
-// =========================
-let scanAutoTimeout;
-
-function setupScanInputAuto() {
-  const scanInput = document.getElementById("scanCode");
-  if (!scanInput) return;
-
-  scanInput.addEventListener("input", () => {
-    clearTimeout(scanAutoTimeout);
-
-    scanAutoTimeout = setTimeout(() => {
-      const code = scanInput.value.trim();
-      if (!code) return;
-
-      processScannedCode(code);
-      scanInput.value = "";
-      scanInput.focus();
-    }, 180);
-  });
-
-  scanInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-
-      const code = scanInput.value.trim();
-      if (!code) return;
-
-      clearTimeout(scanAutoTimeout);
-      processScannedCode(code);
-      scanInput.value = "";
-      scanInput.focus();
-    }
-  });
-}
-
-// =========================
-// REEMPLAZO DE setupScanPage
+// ESCANEO INPUT
 // =========================
 function setupScanPage() {
-  const scanInput = document.getElementById("scanCode");
-  const minusBtn = document.getElementById("minusOneBtn");
-  const undoBtn = document.getElementById("undoScanBtn");
-  const startCameraBtn = document.getElementById("startCameraBtn");
-  const stopCameraBtn = document.getElementById("stopCameraBtn");
+  const input = document.getElementById("scanCode");
+  if (!input) return;
 
-  if (!scanInput) return;
+  input.focus();
 
-  renderScanSummary();
-  setupScanInputAuto();
-  scanInput.focus();
-
-  if (startCameraBtn) {
-    startCameraBtn.addEventListener("click", async () => {
-      await startCameraScanner();
-    });
-  }
-
-  if (stopCameraBtn) {
-    stopCameraBtn.addEventListener("click", async () => {
-      await stopCameraScanner();
-    });
-  }
-
-  if (minusBtn) {
-    minusBtn.addEventListener("click", () => {
-      const code = document.getElementById("resultCode").textContent.trim();
-      if (!code) return;
-
-      const updated = updateProductReal(code, -1);
-      saveLastScan({ code, amount: -1 });
-
-      setScanMessage(`Se restó 1 a ${updated.name}.`, "success");
-      showScannedProduct(updated);
-      renderScanSummary();
-      playBeep("ok");
-      vibrateDevice(60);
-      scanInput.focus();
-    });
-  }
-
-  if (undoBtn) {
-    undoBtn.addEventListener("click", () => {
-      const lastScan = getLastScan();
-
-      if (!lastScan) {
-        setScanMessage("No hay último escaneo para deshacer.", "error");
-        playBeep("error");
-        vibrateDevice([100, 60, 100]);
-        return;
-      }
-
-      const reverseAmount = lastScan.amount === 1 ? -1 : 1;
-      const updated = updateProductReal(lastScan.code, reverseAmount);
-
-      if (updated) {
-        setScanMessage("Último escaneo deshecho correctamente.", "success");
-        showScannedProduct(updated);
-        renderScanSummary();
-        playBeep("ok");
-        vibrateDevice(70);
-      }
-
-      clearLastScan();
-      scanInput.focus();
-    });
-  }
-
-  window.addEventListener("beforeunload", () => {
-    if (cameraRunning) {
-      stopCameraScanner();
+  input.addEventListener("keydown", e => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      processScan(input.value.trim());
+      input.value = "";
     }
+  });
+
+  document.getElementById("minusOneBtn")?.addEventListener("click", () => {
+    const code = document.getElementById("resultCode").textContent;
+    const p = updateReal(code, -1);
+    if (p) showResult(p);
+    renderSummary();
+  });
+
+  document.getElementById("undoScanBtn")?.addEventListener("click", () => {
+    const code = document.getElementById("resultCode").textContent;
+    const p = updateReal(code, -1);
+    if (p) showResult(p);
+    renderSummary();
   });
 }
