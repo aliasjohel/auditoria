@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Control Stock - Login</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="container">
+    <div class="card">
+      <h2>Control Stock</h2>
+      <p class="subtitle">Ingresá para continuar</p>
+
+      <input type="text" id="user" placeholder="Usuario">
+
+ <div class="password-box">
+  <input type="password" id="pass" placeholder="Contraseña">
+  <span id="togglePass" class="toggle-pass" title="Mostrar u ocultar contraseña">👁</span>
+</div>
+
+      <label class="remember-box">
+        <input type="checkbox" id="rememberUser">
+        Recordar usuario
+      </label>
+
+      <button id="loginBtn">Ingresar</button>
+
+      <p id="error"></p>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

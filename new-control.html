@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nuevo Control</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="navbar">
+    <h2>Nuevo Control</h2>
+    <div class="nav-actions">
+      <button onclick="goTo('home.html')" class="back-btn">Volver</button>
+      <button onclick="logout()" class="logout">Cerrar sesión</button>
+    </div>
+  </div>
+
+  <div class="page">
+    <div class="card page-card">
+      <h3>Crear auditoría</h3>
+
+      <input type="text" placeholder="Nombre del cliente">
+      <input type="text" placeholder="Sucursal">
+      <input type="date">
+      <textarea placeholder="Observaciones"></textarea>
+
+      <button>Guardar control</button>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

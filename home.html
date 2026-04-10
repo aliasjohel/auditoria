@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Control Stock - Inicio</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="navbar">
+    <h2>Control Stock</h2>
+    <button onclick="logout()" class="logout">Cerrar sesión</button>
+  </div>
+
+  <div class="page">
+    <h1>Panel principal</h1>
+    <p class="subtitle">Elegí una opción para comenzar</p>
+
+    <div class="menu">
+      <button onclick="goTo('new-control.html')">Nuevo Control</button>
+      <button onclick="goTo('products.html')">Productos</button>
+      <button onclick="goTo('history.html')">Historial</button>
+      <button onclick="goTo('scan.html')">Escanear</button>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Escanear</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="navbar">
+    <h2>Escanear</h2>
+    <div class="nav-actions">
+      <button onclick="goTo('home.html')" class="back-btn">Volver</button>
+      <button onclick="logout()" class="logout">Cerrar sesión</button>
+    </div>
+  </div>
+
+  <div class="page">
+  <div class="card page-card">
+    <h3>Escaneo de productos</h3>
+
+    <div class="scan-top-actions">
+      <button id="startCameraBtn" type="button">Abrir cámara</button>
+      <button id="stopCameraBtn" type="button" class="secondary-btn">Cerrar cámara</button>
+    </div>
+
+    <div id="reader" class="reader-box hidden"></div>
+
+    <input type="text" id="scanCode" placeholder="Escaneá con pistola o escribí el código">
+
+    <p id="scanMsg" class="info-msg"></p>
+
+    <div id="scanResult" class="scan-result hidden">
+      <p><strong>Producto:</strong> <span id="resultName"></span></p>
+      <p><strong>Código:</strong> <span id="resultCode"></span></p>
+      <p><strong>Stock teórico:</strong> <span id="resultTeorico"></span></p>
+      <p><strong>Stock real:</strong> <span id="resultReal"></span></p>
+      <p><strong>Diferencia:</strong> <span id="resultDiff"></span></p>
+
+      <div class="scan-actions">
+        <button id="minusOneBtn" type="button" class="secondary-btn">Restar 1</button>
+        <button id="undoScanBtn" type="button" class="danger-btn">Deshacer último escaneo</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card page-card mt-20">
+    <h3>Resumen de conteo</h3>
+    <div id="scanSummary" class="products-list"></div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/html5-qrcode" defer></script>
+<script src="app.js"></script>
+
+  <script src="app.js"></script>
+</body>
+</html>
