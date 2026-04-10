@@ -69,47 +69,132 @@ function renderProducts() {
 
 function setupProductsPage() {
   const btn = document.getElementById("saveProductBtn");
-  if (!btn) return;
+  const importBtn = document.getElementById("importCsvBtn");
 
   renderProducts();
 
-  btn.addEventListener("click", () => {
-    const name = document.getElementById("productName").value.trim();
-    const code = document.getElementById("productCode").value.trim();
-    const stock = parseInt(document.getElementById("productStock").value);
-    const msg = document.getElementById("productMsg");
+  if (btn) {
+    btn.addEventListener("click", () => {
+      const name = document.getElementById("productName").value.trim();
+      const code = document.getElementById("productCode").value.trim();
+      const stock = parseInt(document.getElementById("productStock").value);
+      const msg = document.getElementById("productMsg");
 
-    if (!name || !code || isNaN(stock)) {
-      if (msg) msg.textContent = "Completá nombre, código y stock teórico.";
-      return;
-    }
+      if (!name || !code || isNaN(stock)) {
+        if (msg) msg.textContent = "Completá nombre, código y stock teórico.";
+        return;
+      }
 
-    const products = getProducts();
-    const exists = products.find(p => p.code === code);
+      const products = getProducts();
+      const exists = products.find(p => p.code === code);
 
-    if (exists) {
-      if (msg) msg.textContent = "Ya existe un producto con ese código.";
-      return;
-    }
+      if (exists) {
+        if (msg) msg.textContent = "Ya existe un producto con ese código.";
+        return;
+      }
 
-    products.push({
-      name,
-      code,
-      stockTeorico: stock,
-      stockReal: 0
+      products.push({
+        name,
+        code,
+        stockTeorico: stock,
+        stockReal: 0
+      });
+
+      saveProducts(products);
+
+      document.getElementById("productName").value = "";
+      document.getElementById("productCode").value = "";
+      document.getElementById("productStock").value = "";
+
+      if (msg) msg.textContent = "Producto guardado correctamente.";
+
+      renderProducts();
+      renderScanSummary();
     });
+  }
 
-    saveProducts(products);
+  if (importBtn) {
+    importBtn.addEventListener("click", () => {
+      const fileInput = document.getElementById("csvFileInput");
+      const csvMsg = document.getElementById("csvMsg");
 
-    document.getElementById("productName").value = "";
-    document.getElementById("productCode").value = "";
-    document.getElementById("productStock").value = "";
+      if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+        if (csvMsg) csvMsg.textContent = "Seleccioná un archivo CSV.";
+        return;
+      }
 
-    if (msg) msg.textContent = "Producto guardado correctamente.";
+      const file = fileInput.files[0];
+      const reader = new FileReader();
 
-    renderProducts();
-    renderScanSummary();
-  });
+      reader.onload = function (e) {
+        try {
+          const text = e.target.result;
+          const lines = text.split(/\r?\n/).filter(line => line.trim() !== "");
+
+          if (lines.length < 2) {
+            if (csvMsg) csvMsg.textContent = "El archivo no tiene datos válidos.";
+            return;
+          }
+
+          const header = lines[0].split(",").map(h => h.trim());
+          const codeIndex = header.indexOf("codigo");
+          const nameIndex = header.indexOf("nombre");
+          const stockIndex = header.indexOf("stockTeorico");
+
+          if (codeIndex === -1 || nameIndex === -1 || stockIndex === -1) {
+            if (csvMsg) csvMsg.textContent = "El CSV debe tener: codigo, nombre, stockTeorico.";
+            return;
+          }
+
+          const products = getProducts();
+          let added = 0;
+          let skipped = 0;
+
+          for (let i = 1; i < lines.length; i++) {
+            const cols = lines[i].split(",").map(c => c.trim());
+
+            const code = cols[codeIndex];
+            const name = cols[nameIndex];
+            const stock = parseInt(cols[stockIndex]);
+
+            if (!code || !name || isNaN(stock)) {
+              skipped++;
+              continue;
+            }
+
+            const exists = products.find(p => p.code === code);
+            if (exists) {
+              skipped++;
+              continue;
+            }
+
+            products.push({
+              name,
+              code,
+              stockTeorico: stock,
+              stockReal: 0
+            });
+
+            added++;
+          }
+
+          saveProducts(products);
+          renderProducts();
+          renderScanSummary();
+
+          if (csvMsg) {
+            csvMsg.textContent = `Importación lista. Agregados: ${added}. Omitidos: ${skipped}.`;
+          }
+
+          fileInput.value = "";
+        } catch (error) {
+          if (csvMsg) csvMsg.textContent = "Error al leer el archivo CSV.";
+        }
+      };
+
+      reader.readAsText(file, "UTF-8");
+    });
+  }
 }
 
 // =========================

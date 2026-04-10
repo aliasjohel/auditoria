@@ -30,6 +30,19 @@
     </div>
 
     <div class="card page-card mt-20">
+      <h3>Importar productos desde CSV</h3>
+
+      <input type="file" id="csvFileInput" accept=".csv">
+      <button id="importCsvBtn">Importar CSV</button>
+
+      <p class="subtitle">
+        Formato esperado: codigo,nombre,stockTeorico
+      </p>
+
+      <p id="csvMsg" class="info-msg"></p>
+    </div>
+
+    <div class="card page-card mt-20">
       <h3>Productos guardados</h3>
       <div id="productsList" class="products-list"></div>
     </div>
