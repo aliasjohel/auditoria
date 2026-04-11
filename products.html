@@ -24,6 +24,11 @@
       <input type="text" id="productCode" placeholder="Código de barras">
       <input type="number" id="productStock" placeholder="Stock teórico">
 
+      <div class="zone-grid">
+        <input type="text" id="productPasillo" placeholder="Pasillo">
+        <input type="text" id="productFila" placeholder="Fila">
+      </div>
+
       <button id="saveProductBtn">Guardar producto</button>
 
       <p id="productMsg" class="info-msg"></p>
@@ -36,7 +41,7 @@
       <button id="importCsvBtn">Importar CSV</button>
 
       <p class="subtitle">
-        Formato esperado: codigo,nombre,stockTeorico
+        Formato esperado: codigo,nombre,stockTeorico,pasillo,fila
       </p>
 
       <p id="csvMsg" class="info-msg"></p>

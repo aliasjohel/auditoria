@@ -17,43 +17,83 @@
   </div>
 
   <div class="page">
-  <div class="card page-card">
-    <h3>Escaneo de productos</h3>
+    <div class="card page-card">
+      <h3>Escaneo de productos</h3>
 
-    <div class="scan-top-actions">
-      <button id="startCameraBtn" type="button">Abrir cámara</button>
-      <button id="stopCameraBtn" type="button" class="secondary-btn">Cerrar cámara</button>
-    </div>
+      <div class="zone-toolbar">
+        <div class="zone-grid">
+          <div>
+            <label class="field-label" for="scanPasilloFilter">Filtrar por pasillo</label>
+            <select id="scanPasilloFilter">
+              <option value="">Todos los pasillos</option>
+            </select>
+          </div>
 
-    <div id="reader" class="reader-box hidden"></div>
+          <div>
+            <label class="field-label" for="scanFilaFilter">Filtrar por fila</label>
+            <select id="scanFilaFilter">
+              <option value="">Todas las filas</option>
+            </select>
+          </div>
+        </div>
 
-    <input type="text" id="scanCode" placeholder="Escaneá con pistola o escribí el código">
+        <div class="zone-actions">
+          <button id="markPasilloDoneBtn" type="button" class="secondary-btn">Marcar pasillo como terminado</button>
+          <button id="unmarkPasilloDoneBtn" type="button" class="danger-btn">Quitar terminado</button>
+        </div>
 
-    <p id="scanMsg" class="info-msg"></p>
+        <p id="zoneMsg" class="info-msg"></p>
+      </div>
 
-    <div id="scanResult" class="scan-result hidden">
-      <p><strong>Producto:</strong> <span id="resultName"></span></p>
-      <p><strong>Código:</strong> <span id="resultCode"></span></p>
-      <p><strong>Stock teórico:</strong> <span id="resultTeorico"></span></p>
-      <p><strong>Stock real:</strong> <span id="resultReal"></span></p>
-      <p><strong>Diferencia:</strong> <span id="resultDiff"></span></p>
+      <div id="zoneProgressBox" class="zone-progress-box"></div>
 
-      <div class="scan-actions">
-        <button id="minusOneBtn" type="button" class="secondary-btn">Restar 1</button>
-        <button id="undoScanBtn" type="button" class="danger-btn">Deshacer último escaneo</button>
+      <div class="scan-top-actions">
+        <button id="startCameraBtn" type="button">Abrir cámara</button>
+        <button id="stopCameraBtn" type="button" class="secondary-btn">Cerrar cámara</button>
+      </div>
+
+      <div id="reader" class="reader-box hidden"></div>
+
+      <input type="text" id="scanCode" placeholder="Escaneá con pistola o escribí el código">
+
+      <p id="scanMsg" class="info-msg"></p>
+
+      <div id="scanResult" class="scan-result hidden">
+        <p><strong>Producto:</strong> <span id="resultName"></span></p>
+        <p><strong>Código:</strong> <span id="resultCode"></span></p>
+        <p><strong>Pasillo:</strong> <span id="resultPasillo"></span></p>
+        <p><strong>Fila:</strong> <span id="resultFila"></span></p>
+        <p><strong>Stock teórico:</strong> <span id="resultTeorico"></span></p>
+        <p><strong>Stock real:</strong> <span id="resultReal"></span></p>
+        <p><strong>Diferencia:</strong> <span id="resultDiff"></span></p>
+
+        <div class="scan-actions">
+          <button id="minusOneBtn" type="button" class="secondary-btn">Restar 1</button>
+          <button id="undoScanBtn" type="button" class="danger-btn">Deshacer último escaneo</button>
+        </div>
       </div>
     </div>
+
+    <div class="card page-card mt-20">
+      <h3>Resumen de conteo</h3>
+      <div id="scanSummary" class="products-list"></div>
+    </div>
+
+    <div class="card page-card mt-20">
+      <h3>Modo central (base preparada)</h3>
+      <p class="subtitle">
+        Esta sección va a servir para consolidar conteos de varios equipos. En esta etapa queda preparada la estructura visual y la lógica base.
+      </p>
+
+      <input type="file" id="teamCountFileInput" accept=".json" multiple>
+      <button id="importTeamCountsBtn" type="button">Importar conteos de equipos</button>
+
+      <p id="centralMsg" class="info-msg"></p>
+      <div id="centralSummary" class="products-list"></div>
+    </div>
   </div>
 
-  <div class="card page-card mt-20">
-    <h3>Resumen de conteo</h3>
-    <div id="scanSummary" class="products-list"></div>
-  </div>
-</div>
-
-<script src="https://unpkg.com/html5-qrcode" defer></script>
-<script src="app.js"></script>
-
+  <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="app.js"></script>
 </body>
 </html>

@@ -5,11 +5,14 @@ const USER = "Jesus96";
 const PASS = "soyunapuerca";
 
 // =========================
-// PROTEGER PÁGINAS
+// RUTAS / PÁGINAS
 // =========================
 const currentPage = window.location.pathname.split("/").pop() || "index.html";
 const protectedPages = ["home.html", "new-control.html", "products.html", "history.html", "scan.html"];
 
+// =========================
+// PROTEGER PÁGINAS
+// =========================
 if (currentPage === "index.html" || currentPage === "") {
   if (localStorage.getItem("logged") === "true") {
     window.location.href = "home.html";
@@ -35,14 +38,123 @@ function logout() {
 }
 
 // =========================
+// HELPERS
+// =========================
+function normalizeText(value) {
+  return String(value || "").trim();
+}
+
+function normalizeUpper(value) {
+  return normalizeText(value).toUpperCase();
+}
+
+function safeNumber(value, fallback = 0) {
+  const n = parseInt(value, 10);
+  return Number.isNaN(n) ? fallback : n;
+}
+
+function setText(id, text) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = text;
+}
+
+function showInfoMessage(id, text, type = "info") {
+  const el = document.getElementById(id);
+  if (!el) return;
+
+  el.textContent = text;
+  el.classList.remove("success-msg", "error-msg");
+
+  if (type === "success") el.classList.add("success-msg");
+  if (type === "error") el.classList.add("error-msg");
+}
+
+// =========================
+// STORAGE KEYS
+// =========================
+const STORAGE_KEYS = {
+  products: "products",
+  lastScan: "lastScan",
+  finishedPasillos: "finishedPasillos",
+  centralImports: "centralImports"
+};
+
+// =========================
 // PRODUCTOS
 // =========================
+function normalizeProduct(product) {
+  return {
+    name: normalizeText(product?.name),
+    code: normalizeText(product?.code),
+    stockTeorico: safeNumber(product?.stockTeorico, 0),
+    stockReal: safeNumber(product?.stockReal, 0),
+    pasillo: normalizeUpper(product?.pasillo || "SIN PASILLO"),
+    fila: normalizeUpper(product?.fila || "SIN FILA")
+  };
+}
+
 function getProducts() {
-  return JSON.parse(localStorage.getItem("products")) || [];
+  const raw = JSON.parse(localStorage.getItem(STORAGE_KEYS.products)) || [];
+  return raw.map(normalizeProduct);
 }
 
 function saveProducts(products) {
-  localStorage.setItem("products", JSON.stringify(products));
+  const normalized = products.map(normalizeProduct);
+  localStorage.setItem(STORAGE_KEYS.products, JSON.stringify(normalized));
+}
+
+function findProductByCode(code) {
+  const normalizedCode = normalizeText(code);
+  return getProducts().find(p => p.code === normalizedCode);
+}
+
+function getUniquePasillos(products = getProducts()) {
+  return [...new Set(products.map(p => p.pasillo).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es', { numeric: true }));
+}
+
+function getUniqueFilasByPasillo(pasillo = "", products = getProducts()) {
+  const filtered = pasillo
+    ? products.filter(p => p.pasillo === pasillo)
+    : products;
+
+  return [...new Set(filtered.map(p => p.fila).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es', { numeric: true }));
+}
+
+function getFinishedPasillos() {
+  return JSON.parse(localStorage.getItem(STORAGE_KEYS.finishedPasillos)) || [];
+}
+
+function saveFinishedPasillos(list) {
+  localStorage.setItem(STORAGE_KEYS.finishedPasillos, JSON.stringify(list));
+}
+
+function markPasilloAsFinished(pasillo) {
+  if (!pasillo) return false;
+
+  const current = getFinishedPasillos();
+  if (current.includes(pasillo)) return false;
+
+  current.push(pasillo);
+  saveFinishedPasillos(current);
+  return true;
+}
+
+function unmarkPasilloAsFinished(pasillo) {
+  if (!pasillo) return false;
+
+  const current = getFinishedPasillos();
+  const next = current.filter(item => item !== pasillo);
+
+  if (next.length === current.length) return false;
+
+  saveFinishedPasillos(next);
+  return true;
+}
+
+function productMatchesFilters(product, pasilloFilter = "", filaFilter = "") {
+  const matchesPasillo = !pasilloFilter || product.pasillo === pasilloFilter;
+  const matchesFila = !filaFilter || product.fila === filaFilter;
+  return matchesPasillo && matchesFila;
 }
 
 function renderProducts() {
@@ -60,6 +172,8 @@ function renderProducts() {
     <div class="product-item">
       <strong>${p.name}</strong><br>
       Código: ${p.code}<br>
+      Pasillo: ${p.pasillo}<br>
+      Fila: ${p.fila}<br>
       Stock teórico: ${p.stockTeorico}<br>
       Stock real: ${p.stockReal || 0}<br>
       Diferencia: ${(p.stockReal || 0) - p.stockTeorico}
@@ -75,12 +189,14 @@ function setupProductsPage() {
 
   if (btn) {
     btn.addEventListener("click", () => {
-      const name = document.getElementById("productName").value.trim();
-      const code = document.getElementById("productCode").value.trim();
-      const stock = parseInt(document.getElementById("productStock").value);
+      const name = normalizeText(document.getElementById("productName")?.value);
+      const code = normalizeText(document.getElementById("productCode")?.value);
+      const stock = safeNumber(document.getElementById("productStock")?.value, NaN);
+      const pasillo = normalizeUpper(document.getElementById("productPasillo")?.value || "SIN PASILLO");
+      const fila = normalizeUpper(document.getElementById("productFila")?.value || "SIN FILA");
       const msg = document.getElementById("productMsg");
 
-      if (!name || !code || isNaN(stock)) {
+      if (!name || !code || Number.isNaN(stock)) {
         if (msg) msg.textContent = "Completá nombre, código y stock teórico.";
         return;
       }
@@ -97,7 +213,9 @@ function setupProductsPage() {
         name,
         code,
         stockTeorico: stock,
-        stockReal: 0
+        stockReal: 0,
+        pasillo,
+        fila
       });
 
       saveProducts(products);
@@ -105,11 +223,15 @@ function setupProductsPage() {
       document.getElementById("productName").value = "";
       document.getElementById("productCode").value = "";
       document.getElementById("productStock").value = "";
+      document.getElementById("productPasillo").value = "";
+      document.getElementById("productFila").value = "";
 
       if (msg) msg.textContent = "Producto guardado correctamente.";
 
       renderProducts();
       renderScanSummary();
+      populateScanFilters();
+      renderZoneProgress();
     });
   }
 
@@ -140,9 +262,11 @@ function setupProductsPage() {
           const codeIndex = header.indexOf("codigo");
           const nameIndex = header.indexOf("nombre");
           const stockIndex = header.indexOf("stockTeorico");
+          const pasilloIndex = header.indexOf("pasillo");
+          const filaIndex = header.indexOf("fila");
 
           if (codeIndex === -1 || nameIndex === -1 || stockIndex === -1) {
-            if (csvMsg) csvMsg.textContent = "El CSV debe tener: codigo, nombre, stockTeorico.";
+            if (csvMsg) csvMsg.textContent = "El CSV debe tener: codigo, nombre, stockTeorico. Puede incluir también: pasillo, fila.";
             return;
           }
 
@@ -153,11 +277,13 @@ function setupProductsPage() {
           for (let i = 1; i < lines.length; i++) {
             const cols = lines[i].split(",").map(c => c.trim());
 
-            const code = cols[codeIndex];
-            const name = cols[nameIndex];
-            const stock = parseInt(cols[stockIndex]);
+            const code = normalizeText(cols[codeIndex]);
+            const name = normalizeText(cols[nameIndex]);
+            const stock = safeNumber(cols[stockIndex], NaN);
+            const pasillo = pasilloIndex !== -1 ? normalizeUpper(cols[pasilloIndex] || "SIN PASILLO") : "SIN PASILLO";
+            const fila = filaIndex !== -1 ? normalizeUpper(cols[filaIndex] || "SIN FILA") : "SIN FILA";
 
-            if (!code || !name || isNaN(stock)) {
+            if (!code || !name || Number.isNaN(stock)) {
               skipped++;
               continue;
             }
@@ -172,7 +298,9 @@ function setupProductsPage() {
               name,
               code,
               stockTeorico: stock,
-              stockReal: 0
+              stockReal: 0,
+              pasillo,
+              fila
             });
 
             added++;
@@ -181,6 +309,8 @@ function setupProductsPage() {
           saveProducts(products);
           renderProducts();
           renderScanSummary();
+          populateScanFilters();
+          renderZoneProgress();
 
           if (csvMsg) {
             csvMsg.textContent = `Importación lista. Agregados: ${added}. Omitidos: ${skipped}.`;
@@ -201,15 +331,15 @@ function setupProductsPage() {
 // ÚLTIMO ESCANEO
 // =========================
 function getLastScan() {
-  return JSON.parse(localStorage.getItem("lastScan")) || null;
+  return JSON.parse(localStorage.getItem(STORAGE_KEYS.lastScan)) || null;
 }
 
 function saveLastScan(scan) {
-  localStorage.setItem("lastScan", JSON.stringify(scan));
+  localStorage.setItem(STORAGE_KEYS.lastScan, JSON.stringify(scan));
 }
 
 function clearLastScan() {
-  localStorage.removeItem("lastScan");
+  localStorage.removeItem(STORAGE_KEYS.lastScan);
 }
 
 // =========================
@@ -248,23 +378,20 @@ function vibrateDevice(pattern = 100) {
 }
 
 function setScanMessage(text, type = "info") {
-  const msg = document.getElementById("scanMsg");
-  if (!msg) return;
+  showInfoMessage("scanMsg", text, type);
+}
 
-  msg.textContent = text;
-  msg.classList.remove("success-msg", "error-msg");
+function setZoneMessage(text, type = "info") {
+  showInfoMessage("zoneMsg", text, type);
+}
 
-  if (type === "success") msg.classList.add("success-msg");
-  if (type === "error") msg.classList.add("error-msg");
+function setCentralMessage(text, type = "info") {
+  showInfoMessage("centralMsg", text, type);
 }
 
 // =========================
 // ESCANEO - LÓGICA
 // =========================
-function findProductByCode(code) {
-  return getProducts().find(p => p.code === code);
-}
-
 function updateProductReal(code, amount) {
   const products = getProducts();
   const index = products.findIndex(p => p.code === code);
@@ -285,13 +412,22 @@ function showScannedProduct(product) {
   const box = document.getElementById("scanResult");
   if (!box || !product) return;
 
-  document.getElementById("resultName").textContent = product.name;
-  document.getElementById("resultCode").textContent = product.code;
-  document.getElementById("resultTeorico").textContent = product.stockTeorico;
-  document.getElementById("resultReal").textContent = product.stockReal || 0;
-  document.getElementById("resultDiff").textContent = (product.stockReal || 0) - product.stockTeorico;
+  setText("resultName", product.name);
+  setText("resultCode", product.code);
+  setText("resultPasillo", product.pasillo || "SIN PASILLO");
+  setText("resultFila", product.fila || "SIN FILA");
+  setText("resultTeorico", product.stockTeorico);
+  setText("resultReal", product.stockReal || 0);
+  setText("resultDiff", (product.stockReal || 0) - product.stockTeorico);
 
   box.classList.remove("hidden");
+}
+
+function getCurrentScanFilters() {
+  return {
+    pasillo: normalizeUpper(document.getElementById("scanPasilloFilter")?.value || ""),
+    fila: normalizeUpper(document.getElementById("scanFilaFilter")?.value || "")
+  };
 }
 
 function renderScanSummary() {
@@ -299,16 +435,25 @@ function renderScanSummary() {
   if (!box) return;
 
   const products = getProducts();
+  const { pasillo, fila } = getCurrentScanFilters();
+  const filtered = products.filter(p => productMatchesFilters(p, pasillo, fila));
 
   if (products.length === 0) {
     box.innerHTML = "<p class='placeholder-text'>No hay productos cargados todavía.</p>";
     return;
   }
 
-  box.innerHTML = products.map(p => `
+  if (filtered.length === 0) {
+    box.innerHTML = "<p class='placeholder-text'>No hay productos en el filtro seleccionado.</p>";
+    return;
+  }
+
+  box.innerHTML = filtered.map(p => `
     <div class="product-item">
       <strong>${p.name}</strong><br>
       Código: ${p.code}<br>
+      Pasillo: ${p.pasillo}<br>
+      Fila: ${p.fila}<br>
       Teórico: ${p.stockTeorico}<br>
       Real: ${p.stockReal || 0}<br>
       Diferencia: ${(p.stockReal || 0) - p.stockTeorico}
@@ -317,7 +462,7 @@ function renderScanSummary() {
 }
 
 function processScannedCode(rawCode) {
-  const code = String(rawCode).trim();
+  const code = normalizeText(rawCode);
   if (!code) return;
 
   const found = findProductByCode(code);
@@ -329,12 +474,21 @@ function processScannedCode(rawCode) {
     return;
   }
 
+  const { pasillo } = getCurrentScanFilters();
+  if (pasillo && found.pasillo !== pasillo) {
+    setScanMessage(`El producto ${found.name} pertenece al pasillo ${found.pasillo}, no al filtro actual.`, "error");
+    playBeep("error");
+    vibrateDevice([120, 80, 120]);
+    return;
+  }
+
   const updated = updateProductReal(code, 1);
   saveLastScan({ code, amount: 1 });
 
   setScanMessage(`Escaneo sumado: ${updated.name}`, "success");
   showScannedProduct(updated);
   renderScanSummary();
+  renderZoneProgress();
   playBeep("ok");
   vibrateDevice(80);
 }
@@ -453,6 +607,266 @@ function setupScanInputAuto() {
 }
 
 // =========================
+// FILTROS / PROGRESO ZONAS
+// =========================
+function populateSelect(select, items, emptyLabel) {
+  if (!select) return;
+
+  const currentValue = select.value;
+  select.innerHTML = `<option value="">${emptyLabel}</option>`;
+
+  items.forEach(item => {
+    const option = document.createElement("option");
+    option.value = item;
+    option.textContent = item;
+    select.appendChild(option);
+  });
+
+  if ([...select.options].some(opt => opt.value === currentValue)) {
+    select.value = currentValue;
+  }
+}
+
+function populateScanFilters() {
+  const pasilloSelect = document.getElementById("scanPasilloFilter");
+  const filaSelect = document.getElementById("scanFilaFilter");
+  if (!pasilloSelect || !filaSelect) return;
+
+  const products = getProducts();
+  const selectedPasillo = normalizeUpper(pasilloSelect.value || "");
+  const pasillos = getUniquePasillos(products);
+
+  populateSelect(pasilloSelect, pasillos, "Todos los pasillos");
+
+  const filas = getUniqueFilasByPasillo(selectedPasillo, products);
+  populateSelect(filaSelect, filas, "Todas las filas");
+}
+
+function renderZoneProgress() {
+  const box = document.getElementById("zoneProgressBox");
+  if (!box) return;
+
+  const products = getProducts();
+  const finishedPasillos = getFinishedPasillos();
+
+  if (products.length === 0) {
+    box.innerHTML = "<p class='placeholder-text'>Todavía no hay productos para calcular progreso.</p>";
+    return;
+  }
+
+  const pasillos = getUniquePasillos(products);
+
+  box.innerHTML = pasillos.map(pasillo => {
+    const zoneProducts = products.filter(p => p.pasillo === pasillo);
+    const total = zoneProducts.length;
+    const counted = zoneProducts.filter(p => (p.stockReal || 0) > 0).length;
+    const percent = total > 0 ? Math.round((counted / total) * 100) : 0;
+    const isDone = finishedPasillos.includes(pasillo);
+
+    return `
+      <div class="zone-card ${isDone ? "done" : ""}">
+        <strong>Pasillo ${pasillo}</strong><br>
+        Productos contados: ${counted} de ${total}<br>
+        Progreso: ${percent}%<br>
+        Estado: ${isDone ? "Terminado" : "Pendiente"}
+        <div class="progress-bar">
+          <div class="progress-fill" style="width: ${percent}%"></div>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function setupZoneFilters() {
+  const pasilloSelect = document.getElementById("scanPasilloFilter");
+  const filaSelect = document.getElementById("scanFilaFilter");
+  const markBtn = document.getElementById("markPasilloDoneBtn");
+  const unmarkBtn = document.getElementById("unmarkPasilloDoneBtn");
+
+  if (!pasilloSelect || !filaSelect) return;
+
+  populateScanFilters();
+  renderZoneProgress();
+
+  pasilloSelect.addEventListener("change", () => {
+    const selectedPasillo = normalizeUpper(pasilloSelect.value || "");
+    const filas = getUniqueFilasByPasillo(selectedPasillo, getProducts());
+    populateSelect(filaSelect, filas, "Todas las filas");
+    filaSelect.value = "";
+    renderScanSummary();
+
+    if (selectedPasillo) {
+      setZoneMessage(`Filtrando pasillo ${selectedPasillo}.`, "success");
+    } else {
+      setZoneMessage("Mostrando todos los pasillos.");
+    }
+  });
+
+  filaSelect.addEventListener("change", () => {
+    renderScanSummary();
+
+    const selectedFila = normalizeUpper(filaSelect.value || "");
+    if (selectedFila) {
+      setZoneMessage(`Filtrando fila ${selectedFila}.`, "success");
+    } else {
+      setZoneMessage("Mostrando todas las filas.");
+    }
+  });
+
+  if (markBtn) {
+    markBtn.addEventListener("click", () => {
+      const selectedPasillo = normalizeUpper(pasilloSelect.value || "");
+
+      if (!selectedPasillo) {
+        setZoneMessage("Elegí un pasillo para marcarlo como terminado.", "error");
+        return;
+      }
+
+      const changed = markPasilloAsFinished(selectedPasillo);
+      renderZoneProgress();
+
+      if (changed) {
+        setZoneMessage(`Pasillo ${selectedPasillo} marcado como terminado.`, "success");
+      } else {
+        setZoneMessage(`El pasillo ${selectedPasillo} ya estaba marcado como terminado.`);
+      }
+    });
+  }
+
+  if (unmarkBtn) {
+    unmarkBtn.addEventListener("click", () => {
+      const selectedPasillo = normalizeUpper(pasilloSelect.value || "");
+
+      if (!selectedPasillo) {
+        setZoneMessage("Elegí un pasillo para quitarle el estado terminado.", "error");
+        return;
+      }
+
+      const changed = unmarkPasilloAsFinished(selectedPasillo);
+      renderZoneProgress();
+
+      if (changed) {
+        setZoneMessage(`Pasillo ${selectedPasillo} marcado nuevamente como pendiente.`, "success");
+      } else {
+        setZoneMessage(`El pasillo ${selectedPasillo} no estaba marcado como terminado.`);
+      }
+    });
+  }
+}
+
+// =========================
+// MODO CENTRAL
+// =========================
+function getCentralImports() {
+  return JSON.parse(localStorage.getItem(STORAGE_KEYS.centralImports)) || [];
+}
+
+function saveCentralImports(data) {
+  localStorage.setItem(STORAGE_KEYS.centralImports, JSON.stringify(data));
+}
+
+function renderCentralSummary() {
+  const box = document.getElementById("centralSummary");
+  if (!box) return;
+
+  const imports = getCentralImports();
+
+  if (!imports.length) {
+    box.innerHTML = "<p class='placeholder-text'>Todavía no se importaron conteos de equipos.</p>";
+    return;
+  }
+
+  box.innerHTML = imports.map((item, index) => `
+    <div class="product-item">
+      <strong>Importación ${index + 1}</strong><br>
+      Equipo: ${item.team || "Sin nombre"}<br>
+      Registros: ${Array.isArray(item.counts) ? item.counts.length : 0}
+    </div>
+  `).join("");
+}
+
+function applyCentralCountsToProducts(importedData) {
+  const products = getProducts();
+  let updatedCount = 0;
+
+  importedData.forEach(fileData => {
+    const counts = Array.isArray(fileData.counts) ? fileData.counts : [];
+
+    counts.forEach(entry => {
+      const code = normalizeText(entry.code);
+      const amount = safeNumber(entry.amount, 0);
+
+      if (!code || amount <= 0) return;
+
+      const index = products.findIndex(p => p.code === code);
+      if (index === -1) return;
+
+      products[index].stockReal = (products[index].stockReal || 0) + amount;
+      updatedCount++;
+    });
+  });
+
+  saveProducts(products);
+  return updatedCount;
+}
+
+function setupCentralMode() {
+  const fileInput = document.getElementById("teamCountFileInput");
+  const importBtn = document.getElementById("importTeamCountsBtn");
+
+  if (!fileInput || !importBtn) return;
+
+  renderCentralSummary();
+
+  importBtn.addEventListener("click", async () => {
+    if (!fileInput.files || fileInput.files.length === 0) {
+      setCentralMessage("Seleccioná uno o más archivos JSON.", "error");
+      return;
+    }
+
+    const files = Array.from(fileInput.files);
+
+    try {
+      const parsedFiles = await Promise.all(files.map(file => {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+
+          reader.onload = function (e) {
+            try {
+              const parsed = JSON.parse(e.target.result);
+              resolve(parsed);
+            } catch (err) {
+              reject(new Error(`El archivo ${file.name} no tiene JSON válido.`));
+            }
+          };
+
+          reader.onerror = function () {
+            reject(new Error(`No se pudo leer el archivo ${file.name}.`));
+          };
+
+          reader.readAsText(file, "UTF-8");
+        });
+      }));
+
+      const existing = getCentralImports();
+      const merged = existing.concat(parsedFiles);
+      saveCentralImports(merged);
+
+      const updatedCount = applyCentralCountsToProducts(parsedFiles);
+
+      renderCentralSummary();
+      renderScanSummary();
+      renderZoneProgress();
+      setCentralMessage(`Importación completada. Registros aplicados a productos: ${updatedCount}.`, "success");
+
+      fileInput.value = "";
+    } catch (error) {
+      setCentralMessage(error.message || "Error al importar archivos del modo central.", "error");
+    }
+  });
+}
+
+// =========================
 // SETUP SCAN PAGE
 // =========================
 function setupScanPage() {
@@ -464,8 +878,14 @@ function setupScanPage() {
 
   if (!input) return;
 
+  populateScanFilters();
   renderScanSummary();
+  renderZoneProgress();
+  renderCentralSummary();
   setupScanInputAuto();
+  setupZoneFilters();
+  setupCentralMode();
+
   input.focus();
 
   if (startCameraBtn) {
@@ -482,7 +902,7 @@ function setupScanPage() {
 
   if (minusBtn) {
     minusBtn.addEventListener("click", () => {
-      const code = document.getElementById("resultCode").textContent.trim();
+      const code = normalizeText(document.getElementById("resultCode")?.textContent);
       if (!code) return;
 
       const updated = updateProductReal(code, -1);
@@ -492,6 +912,7 @@ function setupScanPage() {
         setScanMessage(`Se restó 1 a ${updated.name}.`, "success");
         showScannedProduct(updated);
         renderScanSummary();
+        renderZoneProgress();
         playBeep("ok");
         vibrateDevice(60);
       }
@@ -518,6 +939,7 @@ function setupScanPage() {
         setScanMessage("Último escaneo deshecho correctamente.", "success");
         showScannedProduct(updated);
         renderScanSummary();
+        renderZoneProgress();
         playBeep("ok");
         vibrateDevice(70);
       }
@@ -535,23 +957,23 @@ function setupScanPage() {
 }
 
 // =========================
-// DOM READY
+// LOGIN
 // =========================
-document.addEventListener("DOMContentLoaded", () => {
+function setupLogin() {
   const userInput = document.getElementById("user");
   const passInput = document.getElementById("pass");
   const loginBtn = document.getElementById("loginBtn");
   const error = document.getElementById("error");
   const rememberCheckbox = document.getElementById("rememberUser");
 
-  // recordar usuario
+  if (!loginBtn) return;
+
   const savedUser = localStorage.getItem("rememberedUser");
   if (userInput && savedUser) {
     userInput.value = savedUser;
     if (rememberCheckbox) rememberCheckbox.checked = true;
   }
 
-  // mostrar contraseña
   const togglePass = document.getElementById("togglePass");
   if (togglePass && passInput) {
     togglePass.addEventListener("click", () => {
@@ -565,29 +987,41 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // login
-  if (loginBtn) {
-    loginBtn.addEventListener("click", () => {
-      const user = userInput.value.trim();
-      const pass = passInput.value.trim();
-      const remember = rememberCheckbox?.checked;
+  loginBtn.addEventListener("click", () => {
+    const user = userInput?.value.trim() || "";
+    const pass = passInput?.value.trim() || "";
+    const remember = rememberCheckbox?.checked;
 
-      if (user.toLowerCase() === USER.toLowerCase() && pass === PASS) {
-        localStorage.setItem("logged", "true");
+    if (user.toLowerCase() === USER.toLowerCase() && pass === PASS) {
+      localStorage.setItem("logged", "true");
 
-        if (remember) {
-          localStorage.setItem("rememberedUser", user);
-        } else {
-          localStorage.removeItem("rememberedUser");
-        }
-
-        window.location.href = "home.html";
+      if (remember) {
+        localStorage.setItem("rememberedUser", user);
       } else {
-        if (error) error.textContent = "Usuario o contraseña incorrectos";
+        localStorage.removeItem("rememberedUser");
       }
-    });
-  }
 
+      window.location.href = "home.html";
+    } else {
+      if (error) error.textContent = "Usuario o contraseña incorrectos";
+    }
+  });
+}
+
+// =========================
+// MIGRACIÓN SUAVE DE DATOS
+// =========================
+function migrateStoredProductsIfNeeded() {
+  const products = getProducts();
+  saveProducts(products);
+}
+
+// =========================
+// DOM READY
+// =========================
+document.addEventListener("DOMContentLoaded", () => {
+  migrateStoredProductsIfNeeded();
+  setupLogin();
   setupProductsPage();
   setupScanPage();
 });

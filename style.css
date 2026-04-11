@@ -11,6 +11,9 @@ body {
   min-height: 100vh;
 }
 
+/* ========================= */
+/* BASE */
+/* ========================= */
 .container {
   display: flex;
   justify-content: center;
@@ -41,8 +44,12 @@ body {
   font-size: 14px;
 }
 
+/* ========================= */
+/* INPUTS */
+/* ========================= */
 .card input,
-.card textarea {
+.card textarea,
+select {
   width: 100%;
   padding: 12px;
   margin-bottom: 12px;
@@ -55,37 +62,6 @@ body {
 .card textarea {
   resize: vertical;
   min-height: 90px;
-}
-
-.card button,
-.menu button,
-.logout,
-.back-btn,
-.toggle-pass {
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.card button,
-.menu button {
-  width: 100%;
-  padding: 12px;
-  background: #0d6efd;
-  color: white;
-  font-weight: bold;
-}
-
-.card button:hover,
-.menu button:hover {
-  background: #0b5ed7;
-}
-
-#error {
-  margin-top: 12px;
-  color: #ff5c5c;
-  min-height: 20px;
-  font-size: 14px;
 }
 
 .password-box {
@@ -113,7 +89,9 @@ body {
   font-size: 18px;
   user-select: none;
   line-height: 1;
+  z-index: 2;
 }
+
 .remember-box {
   display: flex;
   align-items: center;
@@ -129,18 +107,59 @@ body {
   margin: 0;
 }
 
+/* ========================= */
+/* BOTONES */
+/* ========================= */
+.card button,
+.menu button,
+.logout,
+.back-btn,
+.toggle-pass {
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.card button,
+.menu button {
+  width: 100%;
+  padding: 12px;
+  background: #0d6efd;
+  color: white;
+  font-weight: bold;
+}
+
+.card button:hover,
+.menu button:hover {
+  background: #0b5ed7;
+}
+
+.secondary-btn {
+  background: #444 !important;
+}
+
+.secondary-btn:hover {
+  background: #555 !important;
+}
+
+.danger-btn {
+  background: #dc3545 !important;
+}
+
+.danger-btn:hover {
+  background: #bb2d3b !important;
+}
+
+/* ========================= */
+/* NAVBAR */
+/* ========================= */
 .navbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 10px;
   padding: 15px 20px;
   background: #000;
   border-bottom: 1px solid #333;
-}
-
-.navbar h2 {
-  font-size: 20px;
 }
 
 .nav-actions {
@@ -150,36 +169,19 @@ body {
 
 .logout {
   background: #dc3545;
-  color: white;
   padding: 10px 12px;
-}
-
-.logout:hover {
-  background: #bb2d3b;
 }
 
 .back-btn {
   background: #444;
-  color: white;
   padding: 10px 12px;
 }
 
-.back-btn:hover {
-  background: #555;
-}
-
+/* ========================= */
+/* PAGE */
+/* ========================= */
 .page {
   padding: 24px 20px;
-}
-
-.page h1 {
-  margin-bottom: 10px;
-}
-
-.menu {
-  display: grid;
-  gap: 15px;
-  margin-top: 20px;
 }
 
 .page-card {
@@ -188,11 +190,157 @@ body {
   text-align: left;
 }
 
-.placeholder-text {
-  color: #cfcfcf;
-  font-size: 15px;
+.menu {
+  display: grid;
+  gap: 15px;
+  margin-top: 20px;
 }
 
+/* ========================= */
+/* MENSAJES */
+/* ========================= */
+.info-msg {
+  margin-top: 12px;
+  min-height: 20px;
+  color: #9fd3ff;
+  font-size: 14px;
+}
+
+.success-msg {
+  color: #7CFC98;
+}
+
+.error-msg {
+  color: #ff7b7b;
+}
+
+/* ========================= */
+/* PRODUCTOS */
+/* ========================= */
+.products-list {
+  margin-top: 15px;
+  display: grid;
+  gap: 10px;
+}
+
+.product-item {
+  background: #111;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ========================= */
+/* ZONAS */
+/* ========================= */
+.zone-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.zone-toolbar {
+  margin-bottom: 15px;
+}
+
+.zone-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.field-label {
+  font-size: 13px;
+  color: #ccc;
+  display: block;
+  margin-bottom: 5px;
+}
+
+/* ========================= */
+/* PROGRESO */
+/* ========================= */
+.zone-progress-box {
+  margin-bottom: 15px;
+  display: grid;
+  gap: 10px;
+}
+
+.zone-card {
+  padding: 12px;
+  border-radius: 8px;
+  background: #111;
+  border: 1px solid #333;
+}
+
+.zone-card.done {
+  border: 1px solid #28a745;
+  background: #0f1f14;
+}
+
+.progress-bar {
+  height: 8px;
+  background: #333;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #0d6efd;
+}
+
+/* ========================= */
+/* SCAN */
+/* ========================= */
+.scan-result {
+  margin-top: 15px;
+  padding: 15px;
+  border: 1px solid #333;
+  border-radius: 10px;
+  background: #111;
+}
+
+.scan-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.scan-top-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.reader-box {
+  width: 100%;
+  min-height: 260px;
+  border: 1px solid #333;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #0b0b0b;
+  margin-bottom: 12px;
+}
+
+.hidden {
+  display: none;
+}
+
+/* ========================= */
+/* MODO CENTRAL */
+/* ========================= */
+#centralSummary .product-item {
+  border-left: 4px solid #0d6efd;
+}
+
+/* ========================= */
+/* RESPONSIVE */
+/* ========================= */
 @media (min-width: 768px) {
   .menu {
     grid-template-columns: repeat(2, 1fr);
@@ -214,96 +362,4 @@ body {
 
 .mt-20 {
   margin-top: 20px;
-}
-
-.info-msg {
-  margin-top: 12px;
-  min-height: 20px;
-  color: #9fd3ff;
-  font-size: 14px;
-}
-
-.products-list {
-  margin-top: 15px;
-  display: grid;
-  gap: 10px;
-}
-
-.product-item {
-  background: #111;
-  border: 1px solid #333;
-  border-radius: 8px;
-  padding: 12px;
-  font-size: 14px;
-  line-height: 1.5;
-}
-
-.hidden {
-  display: none;
-}
-
-.scan-result {
-  margin-top: 15px;
-  padding: 15px;
-  border: 1px solid #333;
-  border-radius: 10px;
-  background: #111;
-}
-
-.scan-result p {
-  margin-bottom: 8px;
-}
-
-.scan-actions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-top: 12px;
-}
-
-.secondary-btn {
-  background: #444 !important;
-  color: white;
-}
-
-.secondary-btn:hover {
-  background: #555 !important;
-}
-
-.danger-btn {
-  background: #dc3545 !important;
-  color: white;
-}
-
-.danger-btn:hover {
-  background: #bb2d3b !important;
-}
-
-.scan-top-actions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-bottom: 12px;
-}
-
-.reader-box {
-  width: 100%;
-  min-height: 260px;
-  border: 1px solid #333;
-  border-radius: 10px;
-  overflow: hidden;
-  background: #0b0b0b;
-  margin-bottom: 12px;
-}
-
-.reader-box video {
-  border-radius: 10px;
-}
-
-.success-msg {
-  color: #7CFC98;
-}
-
-.error-msg {
-  color: #ff7b7b;
 }
