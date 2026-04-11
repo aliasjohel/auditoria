@@ -232,7 +232,54 @@ function setupLogin() {
 // INIT
 // =========================
 document.addEventListener("DOMContentLoaded", () => {
-  setupLogin();
+  function setupLogin() {
+  const userInput = document.getElementById("user");
+  const passInput = document.getElementById("pass");
+  const loginBtn = document.getElementById("loginBtn");
+  const error = document.getElementById("error");
+  const rememberCheckbox = document.getElementById("rememberUser");
+
+  if (!loginBtn) return;
+
+  const savedUser = localStorage.getItem("rememberedUser");
+  if (userInput && savedUser) {
+    userInput.value = savedUser;
+    if (rememberCheckbox) rememberCheckbox.checked = true;
+  }
+
+  const togglePass = document.getElementById("togglePass");
+  if (togglePass && passInput) {
+    togglePass.addEventListener("click", () => {
+      if (passInput.type === "password") {
+        passInput.type = "text";
+        togglePass.textContent = "🙈";
+      } else {
+        passInput.type = "password";
+        togglePass.textContent = "👁";
+      }
+    });
+  }
+
+  loginBtn.addEventListener("click", () => {
+    const user = userInput?.value.trim() || "";
+    const pass = passInput?.value.trim() || "";
+    const remember = rememberCheckbox?.checked;
+
+    if (user.toLowerCase() === USER.toLowerCase() && pass === PASS) {
+      localStorage.setItem("logged", "true");
+
+      if (remember) {
+        localStorage.setItem("rememberedUser", user);
+      } else {
+        localStorage.removeItem("rememberedUser");
+      }
+
+      window.location.href = "home.html";
+    } else {
+      if (error) error.textContent = "Usuario o contraseña incorrectos";
+    }
+  });
+}
   setupNewControlPage();
   setupHistoryPage();
 });
