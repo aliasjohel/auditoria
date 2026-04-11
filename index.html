@@ -5,8 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Control Stock - Login</title>
   <link rel="stylesheet" href="style.css">
+
+  <!-- PWA -->
   <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#0d6efd">
+  <meta name="theme-color" content="#0d6efd">
 </head>
 <body>
 
@@ -15,12 +17,28 @@
       <h2>Control Stock</h2>
       <p class="subtitle">Ingresá para continuar</p>
 
-      <input type="text" id="user" placeholder="Usuario">
+      <input
+        type="text"
+        id="user"
+        placeholder="Usuario"
+        autocomplete="username"
+        autocapitalize="none"
+        autocorrect="off"
+        spellcheck="false"
+      >
 
- <div class="password-box">
-  <input type="password" id="pass" placeholder="Contraseña">
-  <span id="togglePass" class="toggle-pass" title="Mostrar u ocultar contraseña">👁</span>
-</div>
+      <div class="password-box">
+        <input
+          type="password"
+          id="pass"
+          placeholder="Contraseña"
+          autocomplete="current-password"
+          autocapitalize="none"
+          autocorrect="off"
+          spellcheck="false"
+        >
+        <span id="togglePass" class="toggle-pass">👁</span>
+      </div>
 
       <label class="remember-box">
         <input type="checkbox" id="rememberUser">
