@@ -11,6 +11,19 @@ const currentPage = window.location.pathname.split("/").pop() || "index.html";
 const protectedPages = ["home.html", "new-control.html", "products.html", "history.html", "scan.html"];
 
 // =========================
+// STORAGE KEYS
+// =========================
+const STORAGE_KEYS = {
+  products: "products",
+  lastScan: "lastScan",
+  currentZone: "currentZone",
+  scanLogs: "scanLogs",
+  finishedPasillos: "finishedPasillos",
+  centralImports: "centralImports",
+  teamName: "teamName"
+};
+
+// =========================
 // PROTEGER PÁGINAS
 // =========================
 if (currentPage === "index.html" || currentPage === "") {
@@ -69,27 +82,43 @@ function showInfoMessage(id, text, type = "info") {
   if (type === "error") el.classList.add("error-msg");
 }
 
-// =========================
-// STORAGE KEYS
-// =========================
-const STORAGE_KEYS = {
-  products: "products",
-  lastScan: "lastScan",
-  finishedPasillos: "finishedPasillos",
-  centralImports: "centralImports"
-};
+function makeId(prefix = "id") {
+  return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`;
+}
+
+function formatZoneLabel(pasillo, fila) {
+  const p = normalizeUpper(pasillo || "SIN PASILLO");
+  const f = normalizeUpper(fila || "SIN FILA");
+  return `Pasillo ${p} · Fila ${f}`;
+}
+
+function downloadTextFile(filename, content, mimeType = "application/json") {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function escapeCsv(value) {
+  const str = String(value ?? "");
+  return `"${str.replace(/"/g, '""')}"`;
+}
 
 // =========================
-// PRODUCTOS
+// PRODUCTOS (CATÁLOGO)
 // =========================
 function normalizeProduct(product) {
   return {
     name: normalizeText(product?.name),
     code: normalizeText(product?.code),
-    stockTeorico: safeNumber(product?.stockTeorico, 0),
-    stockReal: safeNumber(product?.stockReal, 0),
-    pasillo: normalizeUpper(product?.pasillo || "SIN PASILLO"),
-    fila: normalizeUpper(product?.fila || "SIN FILA")
+    stockTeorico: safeNumber(product?.stockTeorico, 0)
   };
 }
 
@@ -99,62 +128,15 @@ function getProducts() {
 }
 
 function saveProducts(products) {
-  const normalized = products.map(normalizeProduct);
-  localStorage.setItem(STORAGE_KEYS.products, JSON.stringify(normalized));
+  localStorage.setItem(
+    STORAGE_KEYS.products,
+    JSON.stringify(products.map(normalizeProduct))
+  );
 }
 
 function findProductByCode(code) {
   const normalizedCode = normalizeText(code);
   return getProducts().find(p => p.code === normalizedCode);
-}
-
-function getUniquePasillos(products = getProducts()) {
-  return [...new Set(products.map(p => p.pasillo).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es', { numeric: true }));
-}
-
-function getUniqueFilasByPasillo(pasillo = "", products = getProducts()) {
-  const filtered = pasillo
-    ? products.filter(p => p.pasillo === pasillo)
-    : products;
-
-  return [...new Set(filtered.map(p => p.fila).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es', { numeric: true }));
-}
-
-function getFinishedPasillos() {
-  return JSON.parse(localStorage.getItem(STORAGE_KEYS.finishedPasillos)) || [];
-}
-
-function saveFinishedPasillos(list) {
-  localStorage.setItem(STORAGE_KEYS.finishedPasillos, JSON.stringify(list));
-}
-
-function markPasilloAsFinished(pasillo) {
-  if (!pasillo) return false;
-
-  const current = getFinishedPasillos();
-  if (current.includes(pasillo)) return false;
-
-  current.push(pasillo);
-  saveFinishedPasillos(current);
-  return true;
-}
-
-function unmarkPasilloAsFinished(pasillo) {
-  if (!pasillo) return false;
-
-  const current = getFinishedPasillos();
-  const next = current.filter(item => item !== pasillo);
-
-  if (next.length === current.length) return false;
-
-  saveFinishedPasillos(next);
-  return true;
-}
-
-function productMatchesFilters(product, pasilloFilter = "", filaFilter = "") {
-  const matchesPasillo = !pasilloFilter || product.pasillo === pasilloFilter;
-  const matchesFila = !filaFilter || product.fila === filaFilter;
-  return matchesPasillo && matchesFila;
 }
 
 function renderProducts() {
@@ -172,11 +154,7 @@ function renderProducts() {
     <div class="product-item">
       <strong>${p.name}</strong><br>
       Código: ${p.code}<br>
-      Pasillo: ${p.pasillo}<br>
-      Fila: ${p.fila}<br>
-      Stock teórico: ${p.stockTeorico}<br>
-      Stock real: ${p.stockReal || 0}<br>
-      Diferencia: ${(p.stockReal || 0) - p.stockTeorico}
+      Stock teórico: ${p.stockTeorico}
     </div>
   `).join("");
 }
@@ -192,8 +170,6 @@ function setupProductsPage() {
       const name = normalizeText(document.getElementById("productName")?.value);
       const code = normalizeText(document.getElementById("productCode")?.value);
       const stock = safeNumber(document.getElementById("productStock")?.value, NaN);
-      const pasillo = normalizeUpper(document.getElementById("productPasillo")?.value || "SIN PASILLO");
-      const fila = normalizeUpper(document.getElementById("productFila")?.value || "SIN FILA");
       const msg = document.getElementById("productMsg");
 
       if (!name || !code || Number.isNaN(stock)) {
@@ -212,10 +188,7 @@ function setupProductsPage() {
       products.push({
         name,
         code,
-        stockTeorico: stock,
-        stockReal: 0,
-        pasillo,
-        fila
+        stockTeorico: stock
       });
 
       saveProducts(products);
@@ -223,15 +196,12 @@ function setupProductsPage() {
       document.getElementById("productName").value = "";
       document.getElementById("productCode").value = "";
       document.getElementById("productStock").value = "";
-      document.getElementById("productPasillo").value = "";
-      document.getElementById("productFila").value = "";
 
       if (msg) msg.textContent = "Producto guardado correctamente.";
 
       renderProducts();
       renderScanSummary();
-      populateScanFilters();
-      renderZoneProgress();
+      renderCentralDashboard();
     });
   }
 
@@ -262,11 +232,9 @@ function setupProductsPage() {
           const codeIndex = header.indexOf("codigo");
           const nameIndex = header.indexOf("nombre");
           const stockIndex = header.indexOf("stockTeorico");
-          const pasilloIndex = header.indexOf("pasillo");
-          const filaIndex = header.indexOf("fila");
 
           if (codeIndex === -1 || nameIndex === -1 || stockIndex === -1) {
-            if (csvMsg) csvMsg.textContent = "El CSV debe tener: codigo, nombre, stockTeorico. Puede incluir también: pasillo, fila.";
+            if (csvMsg) csvMsg.textContent = "El CSV debe tener: codigo, nombre, stockTeorico.";
             return;
           }
 
@@ -280,8 +248,6 @@ function setupProductsPage() {
             const code = normalizeText(cols[codeIndex]);
             const name = normalizeText(cols[nameIndex]);
             const stock = safeNumber(cols[stockIndex], NaN);
-            const pasillo = pasilloIndex !== -1 ? normalizeUpper(cols[pasilloIndex] || "SIN PASILLO") : "SIN PASILLO";
-            const fila = filaIndex !== -1 ? normalizeUpper(cols[filaIndex] || "SIN FILA") : "SIN FILA";
 
             if (!code || !name || Number.isNaN(stock)) {
               skipped++;
@@ -297,10 +263,7 @@ function setupProductsPage() {
             products.push({
               name,
               code,
-              stockTeorico: stock,
-              stockReal: 0,
-              pasillo,
-              fila
+              stockTeorico: stock
             });
 
             added++;
@@ -309,8 +272,7 @@ function setupProductsPage() {
           saveProducts(products);
           renderProducts();
           renderScanSummary();
-          populateScanFilters();
-          renderZoneProgress();
+          renderCentralDashboard();
 
           if (csvMsg) {
             csvMsg.textContent = `Importación lista. Agregados: ${added}. Omitidos: ${skipped}.`;
@@ -328,8 +290,118 @@ function setupProductsPage() {
 }
 
 // =========================
-// ÚLTIMO ESCANEO
+// ZONA ACTUAL
 // =========================
+function getCurrentZone() {
+  return JSON.parse(localStorage.getItem(STORAGE_KEYS.currentZone)) || {
+    pasillo: "",
+    fila: ""
+  };
+}
+
+function saveCurrentZone(zone) {
+  const normalized = {
+    pasillo: normalizeUpper(zone?.pasillo),
+    fila: normalizeUpper(zone?.fila)
+  };
+
+  localStorage.setItem(STORAGE_KEYS.currentZone, JSON.stringify(normalized));
+  return normalized;
+}
+
+function renderCurrentZoneInputs() {
+  const zone = getCurrentZone();
+  const pasilloInput = document.getElementById("currentPasillo");
+  const filaInput = document.getElementById("currentFila");
+
+  if (pasilloInput) pasilloInput.value = zone.pasillo || "";
+  if (filaInput) filaInput.value = zone.fila || "";
+}
+
+function getZoneFromInputs() {
+  return {
+    pasillo: normalizeUpper(document.getElementById("currentPasillo")?.value),
+    fila: normalizeUpper(document.getElementById("currentFila")?.value)
+  };
+}
+
+function hasValidZone(zone) {
+  return !!normalizeText(zone?.pasillo) && !!normalizeText(zone?.fila);
+}
+
+// =========================
+// EQUIPO
+// =========================
+function getTeamName() {
+  return normalizeText(localStorage.getItem(STORAGE_KEYS.teamName) || "");
+}
+
+function saveTeamName(name) {
+  localStorage.setItem(STORAGE_KEYS.teamName, normalizeText(name));
+}
+
+function renderTeamNameInput() {
+  const input = document.getElementById("teamName");
+  if (!input) return;
+  input.value = getTeamName();
+}
+
+function setTeamMessage(text, type = "info") {
+  showInfoMessage("teamMsg", text, type);
+}
+
+// =========================
+// REGISTROS DE ESCANEO
+// =========================
+function normalizeScanLog(log) {
+  return {
+    id: normalizeText(log?.id) || makeId("scan"),
+    code: normalizeText(log?.code),
+    amount: safeNumber(log?.amount, 0),
+    pasillo: normalizeUpper(log?.pasillo),
+    fila: normalizeUpper(log?.fila),
+    timestamp: log?.timestamp || new Date().toISOString(),
+    source: normalizeText(log?.source || "local"),
+    team: normalizeText(log?.team || "")
+  };
+}
+
+function getScanLogs() {
+  const raw = JSON.parse(localStorage.getItem(STORAGE_KEYS.scanLogs)) || [];
+  return raw.map(normalizeScanLog);
+}
+
+function saveScanLogs(logs) {
+  localStorage.setItem(
+    STORAGE_KEYS.scanLogs,
+    JSON.stringify(logs.map(normalizeScanLog))
+  );
+}
+
+function addScanLog(entry) {
+  const logs = getScanLogs();
+  const normalized = normalizeScanLog(entry);
+  logs.push(normalized);
+  saveScanLogs(logs);
+  return normalized;
+}
+
+function removeScanLogById(logId) {
+  const logs = getScanLogs();
+  const index = logs.findIndex(log => log.id === logId);
+
+  if (index === -1) return false;
+
+  logs.splice(index, 1);
+  saveScanLogs(logs);
+  return true;
+}
+
+function clearAllLocalScanLogs() {
+  localStorage.setItem(STORAGE_KEYS.scanLogs, JSON.stringify([]));
+  clearLastScan();
+}
+
 function getLastScan() {
   return JSON.parse(localStorage.getItem(STORAGE_KEYS.lastScan)) || null;
 }
@@ -340,6 +412,118 @@ function saveLastScan(scan) {
 
 function clearLastScan() {
   localStorage.removeItem(STORAGE_KEYS.lastScan);
+}
+
+function getCountedTotalForCode(code) {
+  const logs = getScanLogs().filter(log => log.code === normalizeText(code));
+  const total = logs.reduce((acc, log) => acc + safeNumber(log.amount, 0), 0);
+  return Math.max(0, total);
+}
+
+function getLogsForCode(code) {
+  return getScanLogs().filter(log => log.code === normalizeText(code));
+}
+
+function getZoneBreakdownForCode(code) {
+  const logs = getLogsForCode(code);
+  const map = {};
+
+  logs.forEach(log => {
+    const key = `${log.pasillo}__${log.fila}`;
+    if (!map[key]) {
+      map[key] = {
+        pasillo: log.pasillo,
+        fila: log.fila,
+        total: 0
+      };
+    }
+    map[key].total += safeNumber(log.amount, 0);
+  });
+
+  return Object.values(map)
+    .filter(item => item.total > 0)
+    .sort((a, b) => {
+      const byPasillo = a.pasillo.localeCompare(b.pasillo, "es", { numeric: true });
+      if (byPasillo !== 0) return byPasillo;
+      return a.fila.localeCompare(b.fila, "es", { numeric: true });
+    });
+}
+
+// =========================
+// PASILLOS TERMINADOS
+// =========================
+function getFinishedPasillos() {
+  return JSON.parse(localStorage.getItem(STORAGE_KEYS.finishedPasillos)) || [];
+}
+
+function saveFinishedPasillos(list) {
+  localStorage.setItem(STORAGE_KEYS.finishedPasillos, JSON.stringify(list));
+}
+
+function markPasilloAsFinished(pasillo) {
+  const normalized = normalizeUpper(pasillo);
+  if (!normalized) return false;
+
+  const current = getFinishedPasillos();
+  if (current.includes(normalized)) return false;
+
+  current.push(normalized);
+  saveFinishedPasillos(current);
+  return true;
+}
+
+// =========================
+// IMPORTACIONES CENTRALES
+// =========================
+function normalizeCentralImport(fileData) {
+  return {
+    team: normalizeText(fileData?.team || ""),
+    exportedAt: fileData?.exportedAt || "",
+    counts: Array.isArray(fileData?.counts)
+      ? fileData.counts.map(entry => ({
+          code: normalizeText(entry?.code),
+          amount: safeNumber(entry?.amount, 0),
+          pasillo: normalizeUpper(entry?.pasillo),
+          fila: normalizeUpper(entry?.fila),
+          timestamp: entry?.timestamp || ""
+        }))
+      : []
+  };
+}
+
+function getCentralImports() {
+  const raw = JSON.parse(localStorage.getItem(STORAGE_KEYS.centralImports)) || [];
+  return raw.map(normalizeCentralImport);
+}
+
+function saveCentralImports(data) {
+  localStorage.setItem(
+    STORAGE_KEYS.centralImports,
+    JSON.stringify(data.map(normalizeCentralImport))
+  );
+}
+
+function clearCentralImports() {
+  localStorage.setItem(STORAGE_KEYS.centralImports, JSON.stringify([]));
+}
+
+// =========================
+// MENSAJES
+// =========================
+function setScanMessage(text, type = "info") {
+  showInfoMessage("scanMsg", text, type);
+}
+
+function setZoneMessage(text, type = "info") {
+  showInfoMessage("zoneMsg", text, type);
+}
+
+function setCentralMessage(text, type = "info") {
+  showInfoMessage("centralMsg", text, type);
+}
+
+function setHistoryMessage(text, type = "info") {
+  showInfoMessage("historyMsg", text, type);
 }
 
 // =========================
@@ -377,57 +561,25 @@ function vibrateDevice(pattern = 100) {
   }
 }
 
-function setScanMessage(text, type = "info") {
-  showInfoMessage("scanMsg", text, type);
-}
-
-function setZoneMessage(text, type = "info") {
-  showInfoMessage("zoneMsg", text, type);
-}
-
-function setCentralMessage(text, type = "info") {
-  showInfoMessage("centralMsg", text, type);
-}
-
 // =========================
-// ESCANEO - LÓGICA
+// ESCANEO - PRESENTACIÓN
 // =========================
-function updateProductReal(code, amount) {
-  const products = getProducts();
-  const index = products.findIndex(p => p.code === code);
-
-  if (index === -1) return null;
-
-  products[index].stockReal = (products[index].stockReal || 0) + amount;
-
-  if (products[index].stockReal < 0) {
-    products[index].stockReal = 0;
-  }
-
-  saveProducts(products);
-  return products[index];
-}
-
-function showScannedProduct(product) {
+function showScannedProduct(product, zoneOverride = null) {
   const box = document.getElementById("scanResult");
   if (!box || !product) return;
 
+  const totalCounted = getCountedTotalForCode(product.code);
+  const zone = zoneOverride || getCurrentZone();
+
   setText("resultName", product.name);
   setText("resultCode", product.code);
-  setText("resultPasillo", product.pasillo || "SIN PASILLO");
-  setText("resultFila", product.fila || "SIN FILA");
+  setText("resultPasillo", zone.pasillo || "-");
+  setText("resultFila", zone.fila || "-");
   setText("resultTeorico", product.stockTeorico);
-  setText("resultReal", product.stockReal || 0);
-  setText("resultDiff", (product.stockReal || 0) - product.stockTeorico);
+  setText("resultReal", totalCounted);
+  setText("resultDiff", totalCounted - product.stockTeorico);
 
   box.classList.remove("hidden");
-}
-
-function getCurrentScanFilters() {
-  return {
-    pasillo: normalizeUpper(document.getElementById("scanPasilloFilter")?.value || ""),
-    fila: normalizeUpper(document.getElementById("scanFilaFilter")?.value || "")
-  };
 }
 
 function renderScanSummary() {
@@ -435,35 +587,105 @@ function renderScanSummary() {
   if (!box) return;
 
   const products = getProducts();
-  const { pasillo, fila } = getCurrentScanFilters();
-  const filtered = products.filter(p => productMatchesFilters(p, pasillo, fila));
 
   if (products.length === 0) {
     box.innerHTML = "<p class='placeholder-text'>No hay productos cargados todavía.</p>";
     return;
   }
 
-  if (filtered.length === 0) {
-    box.innerHTML = "<p class='placeholder-text'>No hay productos en el filtro seleccionado.</p>";
+  box.innerHTML = products.map(product => {
+    const totalCounted = getCountedTotalForCode(product.code);
+    const diff = totalCounted - product.stockTeorico;
+    const zones = getZoneBreakdownForCode(product.code);
+
+    const zonesHtml = zones.length
+      ? zones.map(z => `${formatZoneLabel(z.pasillo, z.fila)}: ${z.total}`).join("<br>")
+      : "Sin conteos todavía";
+
+    return `
+      <div class="product-item">
+        <strong>${product.name}</strong><br>
+        Código: ${product.code}<br>
+        Teórico: ${product.stockTeorico}<br>
+        Contado total: ${totalCounted}<br>
+        Diferencia: ${diff}<br>
+        <span class="subtitle">Detalle por zona</span><br>
+        ${zonesHtml}
+      </div>
+    `;
+  }).join("");
+}
+
+function renderZoneProgress() {
+  const box = document.getElementById("zoneProgressBox");
+  if (!box) return;
+
+  const logs = getScanLogs();
+  const currentZone = getCurrentZone();
+  const finished = getFinishedPasillos();
+
+  const pasillosSet = new Set();
+
+  logs.forEach(log => {
+    if (log.pasillo) pasillosSet.add(log.pasillo);
+  });
+
+  finished.forEach(p => {
+    if (p) pasillosSet.add(p);
+  });
+
+  if (currentZone.pasillo) {
+    pasillosSet.add(currentZone.pasillo);
+  }
+
+  const pasillos = [...pasillosSet].sort((a, b) =>
+    a.localeCompare(b, "es", { numeric: true })
+  );
+
+  if (!pasillos.length) {
+    box.innerHTML = "<p class='placeholder-text'>Todavía no hay actividad de zonas.</p>";
     return;
   }
 
-  box.innerHTML = filtered.map(p => `
-    <div class="product-item">
-      <strong>${p.name}</strong><br>
-      Código: ${p.code}<br>
-      Pasillo: ${p.pasillo}<br>
-      Fila: ${p.fila}<br>
-      Teórico: ${p.stockTeorico}<br>
-      Real: ${p.stockReal || 0}<br>
-      Diferencia: ${(p.stockReal || 0) - p.stockTeorico}
-    </div>
-  `).join("");
+  box.innerHTML = pasillos.map(pasillo => {
+    const logsPasillo = logs.filter(log => log.pasillo === pasillo);
+    const filas = [...new Set(logsPasillo.map(log => log.fila).filter(Boolean))];
+    const uniqueCodes = [...new Set(logsPasillo.map(log => log.code).filter(Boolean))];
+    const totalScans = logsPasillo.reduce((acc, log) => acc + Math.max(0, safeNumber(log.amount, 0)), 0);
+    const isDone = finished.includes(pasillo);
+    const progressWidth = isDone ? 100 : logsPasillo.length > 0 ? 60 : 0;
+    const stateText = isDone ? "Terminado" : logsPasillo.length > 0 ? "En trabajo" : "Sin actividad";
+
+    return `
+      <div class="zone-card ${isDone ? "done" : ""}">
+        <strong>Pasillo ${pasillo}</strong><br>
+        Estado: ${stateText}<br>
+        Filas trabajadas: ${filas.length}<br>
+        Productos únicos escaneados: ${uniqueCodes.length}<br>
+        Escaneos registrados: ${totalScans}
+        <div class="progress-bar">
+          <div class="progress-fill" style="width: ${progressWidth}%"></div>
+        </div>
+      </div>
+    `;
+  }).join("");
 }
 
+// =========================
+// ESCANEO - LÓGICA
+// =========================
 function processScannedCode(rawCode) {
   const code = normalizeText(rawCode);
   if (!code) return;
+
+  const zone = getCurrentZone();
+
+  if (!hasValidZone(zone)) {
+    setScanMessage("Primero elegí y guardá pasillo y fila antes de escanear.", "error");
+    playBeep("error");
+    vibrateDevice([120, 80, 120]);
+    return;
+  }
 
   const found = findProductByCode(code);
 
@@ -474,23 +696,104 @@ function processScannedCode(rawCode) {
     return;
   }
 
-  const { pasillo } = getCurrentScanFilters();
-  if (pasillo && found.pasillo !== pasillo) {
-    setScanMessage(`El producto ${found.name} pertenece al pasillo ${found.pasillo}, no al filtro actual.`, "error");
-    playBeep("error");
-    vibrateDevice([120, 80, 120]);
-    return;
-  }
+  const log = addScanLog({
+    code,
+    amount: 1,
+    pasillo: zone.pasillo,
+    fila: zone.fila,
+    timestamp: new Date().toISOString(),
+    source: "local",
+    team: getTeamName()
+  });
 
-  const updated = updateProductReal(code, 1);
-  saveLastScan({ code, amount: 1 });
+  saveLastScan({
+    logId: log.id,
+    code: code,
+    amount: 1
+  });
 
-  setScanMessage(`Escaneo sumado: ${updated.name}`, "success");
-  showScannedProduct(updated);
+  setScanMessage(`Escaneo sumado: ${found.name} en ${formatZoneLabel(zone.pasillo, zone.fila)}.`, "success");
+  showScannedProduct(found, zone);
   renderScanSummary();
   renderZoneProgress();
   playBeep("ok");
   vibrateDevice(80);
+}
+
+function subtractOneFromCurrentProduct() {
+  const code = normalizeText(document.getElementById("resultCode")?.textContent);
+  if (!code) return;
+
+  const zone = getCurrentZone();
+
+  if (!hasValidZone(zone)) {
+    setScanMessage("No hay zona actual guardada.", "error");
+    return;
+  }
+
+  const product = findProductByCode(code);
+  if (!product) return;
+
+  const currentTotal = getCountedTotalForCode(code);
+  if (currentTotal <= 0) {
+    setScanMessage("Ese producto ya está en cero.", "error");
+    playBeep("error");
+    vibrateDevice([100, 60, 100]);
+    return;
+  }
+
+  const log = addScanLog({
+    code,
+    amount: -1,
+    pasillo: zone.pasillo,
+    fila: zone.fila,
+    timestamp: new Date().toISOString(),
+    source: "local",
+    team: getTeamName()
+  });
+
+  saveLastScan({
+    logId: log.id,
+    code: code,
+    amount: -1
+  });
+
+  setScanMessage(`Se restó 1 a ${product.name} en ${formatZoneLabel(zone.pasillo, zone.fila)}.`, "success");
+  showScannedProduct(product, zone);
+  renderScanSummary();
+  renderZoneProgress();
+  playBeep("ok");
+  vibrateDevice(60);
+}
+
+function undoLastScanAction() {
+  const lastScan = getLastScan();
+
+  if (!lastScan || !lastScan.logId) {
+    setScanMessage("No hay último escaneo para deshacer.", "error");
+    playBeep("error");
+    vibrateDevice([100, 60, 100]);
+    return;
+  }
+
+  const removed = removeScanLogById(lastScan.logId);
+
+  if (!removed) {
+    setScanMessage("No se pudo deshacer el último escaneo.", "error");
+    return;
+  }
+
+  const product = findProductByCode(lastScan.code);
+  if (product) {
+    showScannedProduct(product, getCurrentZone());
+  }
+
+  clearLastScan();
+  renderScanSummary();
+  renderZoneProgress();
+  setScanMessage("Último escaneo deshecho correctamente.", "success");
+  playBeep("ok");
+  vibrateDevice(70);
 }
 
 // =========================
@@ -535,9 +838,7 @@ async function startCameraScanner() {
 
         processScannedCode(decodedText);
       },
-      () => {
-        // ignorar errores de lectura continua
-      }
+      () => {}
     );
 
     cameraRunning = true;
@@ -607,164 +908,173 @@ function setupScanInputAuto() {
 }
 
 // =========================
-// FILTROS / PROGRESO ZONAS
+// ZONA ACTUAL - SETUP
 // =========================
-function populateSelect(select, items, emptyLabel) {
-  if (!select) return;
+function setupZoneControls() {
+  const saveZoneBtn = document.getElementById("saveZoneBtn");
+  const nextFilaBtn = document.getElementById("nextFilaBtn");
+  const markPasilloDoneBtn = document.getElementById("markPasilloDoneBtn");
 
-  const currentValue = select.value;
-  select.innerHTML = `<option value="">${emptyLabel}</option>`;
+  renderCurrentZoneInputs();
+  renderZoneProgress();
 
-  items.forEach(item => {
-    const option = document.createElement("option");
-    option.value = item;
-    option.textContent = item;
-    select.appendChild(option);
-  });
+  if (saveZoneBtn) {
+    saveZoneBtn.addEventListener("click", () => {
+      const zone = getZoneFromInputs();
 
-  if ([...select.options].some(opt => opt.value === currentValue)) {
-    select.value = currentValue;
+      if (!hasValidZone(zone)) {
+        setZoneMessage("Completá pasillo y fila para guardar la zona actual.", "error");
+        return;
+      }
+
+      saveCurrentZone(zone);
+      renderZoneProgress();
+      setZoneMessage(`Zona guardada: ${formatZoneLabel(zone.pasillo, zone.fila)}.`, "success");
+    });
+  }
+
+  if (nextFilaBtn) {
+    nextFilaBtn.addEventListener("click", () => {
+      const filaInput = document.getElementById("currentFila");
+      const pasilloInput = document.getElementById("currentPasillo");
+
+      const currentFilaValue = normalizeText(filaInput?.value);
+      const currentPasilloValue = normalizeText(pasilloInput?.value);
+
+      if (!currentPasilloValue) {
+        setZoneMessage("Primero escribí el pasillo actual.", "error");
+        return;
+      }
+
+      const currentFilaNumber = safeNumber(currentFilaValue, NaN);
+
+      if (Number.isNaN(currentFilaNumber)) {
+        setZoneMessage("Para usar 'Siguiente fila', la fila actual debe ser numérica.", "error");
+        return;
+      }
+
+      const nextZone = {
+        pasillo: normalizeUpper(currentPasilloValue),
+        fila: String(currentFilaNumber + 1)
+      };
+
+      saveCurrentZone(nextZone);
+      renderCurrentZoneInputs();
+      renderZoneProgress();
+      setZoneMessage(`Ahora estás en ${formatZoneLabel(nextZone.pasillo, nextZone.fila)}.`, "success");
+    });
+  }
+
+  if (markPasilloDoneBtn) {
+    markPasilloDoneBtn.addEventListener("click", () => {
+      const zone = getZoneFromInputs();
+      const pasillo = normalizeUpper(zone.pasillo);
+
+      if (!pasillo) {
+        setZoneMessage("Escribí el pasillo actual para marcarlo como terminado.", "error");
+        return;
+      }
+
+      const changed = markPasilloAsFinished(pasillo);
+      renderZoneProgress();
+
+      if (changed) {
+        setZoneMessage(`Pasillo ${pasillo} marcado como terminado.`, "success");
+      } else {
+        setZoneMessage(`El pasillo ${pasillo} ya estaba marcado como terminado.`);
+      }
+    });
   }
 }
 
-function populateScanFilters() {
-  const pasilloSelect = document.getElementById("scanPasilloFilter");
-  const filaSelect = document.getElementById("scanFilaFilter");
-  if (!pasilloSelect || !filaSelect) return;
+// =========================
+// EQUIPO - SETUP / EXPORT
+// =========================
+function buildTeamExportData() {
+  const team = getTeamName() || "Equipo sin nombre";
+  const counts = getScanLogs()
+    .filter(log => log.source === "local")
+    .map(log => ({
+      code: log.code,
+      amount: log.amount,
+      pasillo: log.pasillo,
+      fila: log.fila,
+      timestamp: log.timestamp
+    }));
 
-  const products = getProducts();
-  const selectedPasillo = normalizeUpper(pasilloSelect.value || "");
-  const pasillos = getUniquePasillos(products);
-
-  populateSelect(pasilloSelect, pasillos, "Todos los pasillos");
-
-  const filas = getUniqueFilasByPasillo(selectedPasillo, products);
-  populateSelect(filaSelect, filas, "Todas las filas");
+  return {
+    team,
+    exportedAt: new Date().toISOString(),
+    counts
+  };
 }
 
-function renderZoneProgress() {
-  const box = document.getElementById("zoneProgressBox");
-  if (!box) return;
+function exportTeamCounts() {
+  const logs = getScanLogs().filter(log => log.source === "local");
 
-  const products = getProducts();
-  const finishedPasillos = getFinishedPasillos();
-
-  if (products.length === 0) {
-    box.innerHTML = "<p class='placeholder-text'>Todavía no hay productos para calcular progreso.</p>";
+  if (!logs.length) {
+    setTeamMessage("No hay conteos locales para exportar.", "error");
     return;
   }
 
-  const pasillos = getUniquePasillos(products);
+  const team = getTeamName() || "equipo";
+  const safeTeam = team.replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_-]/g, "");
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const filename = `conteo_${safeTeam || "equipo"}_${timestamp}.json`;
 
-  box.innerHTML = pasillos.map(pasillo => {
-    const zoneProducts = products.filter(p => p.pasillo === pasillo);
-    const total = zoneProducts.length;
-    const counted = zoneProducts.filter(p => (p.stockReal || 0) > 0).length;
-    const percent = total > 0 ? Math.round((counted / total) * 100) : 0;
-    const isDone = finishedPasillos.includes(pasillo);
-
-    return `
-      <div class="zone-card ${isDone ? "done" : ""}">
-        <strong>Pasillo ${pasillo}</strong><br>
-        Productos contados: ${counted} de ${total}<br>
-        Progreso: ${percent}%<br>
-        Estado: ${isDone ? "Terminado" : "Pendiente"}
-        <div class="progress-bar">
-          <div class="progress-fill" style="width: ${percent}%"></div>
-        </div>
-      </div>
-    `;
-  }).join("");
+  const exportData = buildTeamExportData();
+  downloadTextFile(filename, JSON.stringify(exportData, null, 2));
+  setTeamMessage(`Conteos exportados correctamente como ${filename}.`, "success");
 }
 
-function setupZoneFilters() {
-  const pasilloSelect = document.getElementById("scanPasilloFilter");
-  const filaSelect = document.getElementById("scanFilaFilter");
-  const markBtn = document.getElementById("markPasilloDoneBtn");
-  const unmarkBtn = document.getElementById("unmarkPasilloDoneBtn");
+function setupTeamControls() {
+  const saveTeamBtn = document.getElementById("saveTeamBtn");
+  const exportBtn = document.getElementById("exportTeamCountsBtn");
+  const clearBtn = document.getElementById("clearLocalCountsBtn");
 
-  if (!pasilloSelect || !filaSelect) return;
+  renderTeamNameInput();
 
-  populateScanFilters();
-  renderZoneProgress();
+  if (saveTeamBtn) {
+    saveTeamBtn.addEventListener("click", () => {
+      const input = document.getElementById("teamName");
+      const name = normalizeText(input?.value);
 
-  pasilloSelect.addEventListener("change", () => {
-    const selectedPasillo = normalizeUpper(pasilloSelect.value || "");
-    const filas = getUniqueFilasByPasillo(selectedPasillo, getProducts());
-    populateSelect(filaSelect, filas, "Todas las filas");
-    filaSelect.value = "";
-    renderScanSummary();
-
-    if (selectedPasillo) {
-      setZoneMessage(`Filtrando pasillo ${selectedPasillo}.`, "success");
-    } else {
-      setZoneMessage("Mostrando todos los pasillos.");
-    }
-  });
-
-  filaSelect.addEventListener("change", () => {
-    renderScanSummary();
-
-    const selectedFila = normalizeUpper(filaSelect.value || "");
-    if (selectedFila) {
-      setZoneMessage(`Filtrando fila ${selectedFila}.`, "success");
-    } else {
-      setZoneMessage("Mostrando todas las filas.");
-    }
-  });
-
-  if (markBtn) {
-    markBtn.addEventListener("click", () => {
-      const selectedPasillo = normalizeUpper(pasilloSelect.value || "");
-
-      if (!selectedPasillo) {
-        setZoneMessage("Elegí un pasillo para marcarlo como terminado.", "error");
+      if (!name) {
+        setTeamMessage("Escribí un nombre de equipo.", "error");
         return;
       }
 
-      const changed = markPasilloAsFinished(selectedPasillo);
-      renderZoneProgress();
-
-      if (changed) {
-        setZoneMessage(`Pasillo ${selectedPasillo} marcado como terminado.`, "success");
-      } else {
-        setZoneMessage(`El pasillo ${selectedPasillo} ya estaba marcado como terminado.`);
-      }
+      saveTeamName(name);
+      setTeamMessage(`Nombre de equipo guardado: ${name}.`, "success");
     });
   }
 
-  if (unmarkBtn) {
-    unmarkBtn.addEventListener("click", () => {
-      const selectedPasillo = normalizeUpper(pasilloSelect.value || "");
+  if (exportBtn) {
+    exportBtn.addEventListener("click", () => {
+      exportTeamCounts();
+    });
+  }
 
-      if (!selectedPasillo) {
-        setZoneMessage("Elegí un pasillo para quitarle el estado terminado.", "error");
+  if (clearBtn) {
+    clearBtn.addEventListener("click", () => {
+      const logs = getScanLogs().filter(log => log.source === "local");
+
+      if (!logs.length) {
+        setTeamMessage("No hay conteos locales para borrar.", "error");
         return;
       }
 
-      const changed = unmarkPasilloAsFinished(selectedPasillo);
+      clearAllLocalScanLogs();
+      renderScanSummary();
       renderZoneProgress();
-
-      if (changed) {
-        setZoneMessage(`Pasillo ${selectedPasillo} marcado nuevamente como pendiente.`, "success");
-      } else {
-        setZoneMessage(`El pasillo ${selectedPasillo} no estaba marcado como terminado.`);
-      }
+      setTeamMessage("Conteos locales borrados correctamente.", "success");
     });
   }
 }
 
 // =========================
-// MODO CENTRAL
+// MODO CENTRAL EN SCAN
 // =========================
-function getCentralImports() {
-  return JSON.parse(localStorage.getItem(STORAGE_KEYS.centralImports)) || [];
-}
-
-function saveCentralImports(data) {
-  localStorage.setItem(STORAGE_KEYS.centralImports, JSON.stringify(data));
-}
-
 function renderCentralSummary() {
   const box = document.getElementById("centralSummary");
   if (!box) return;
@@ -776,38 +1086,49 @@ function renderCentralSummary() {
     return;
   }
 
-  box.innerHTML = imports.map((item, index) => `
-    <div class="product-item">
-      <strong>Importación ${index + 1}</strong><br>
-      Equipo: ${item.team || "Sin nombre"}<br>
-      Registros: ${Array.isArray(item.counts) ? item.counts.length : 0}
-    </div>
-  `).join("");
+  box.innerHTML = imports.map((item, index) => {
+    const counts = Array.isArray(item.counts) ? item.counts : [];
+    return `
+      <div class="product-item">
+        <strong>Importación ${index + 1}</strong><br>
+        Equipo: ${item.team || "Sin nombre"}<br>
+        Registros: ${counts.length}
+      </div>
+    `;
+  }).join("");
 }
 
-function applyCentralCountsToProducts(importedData) {
-  const products = getProducts();
-  let updatedCount = 0;
+function applyCentralCountsToLogs(importedData) {
+  let added = 0;
 
   importedData.forEach(fileData => {
     const counts = Array.isArray(fileData.counts) ? fileData.counts : [];
+    const team = normalizeText(fileData.team || "");
 
     counts.forEach(entry => {
       const code = normalizeText(entry.code);
       const amount = safeNumber(entry.amount, 0);
+      const pasillo = normalizeUpper(entry.pasillo);
+      const fila = normalizeUpper(entry.fila);
 
-      if (!code || amount <= 0) return;
+      if (!code || amount === 0 || !pasillo || !fila) return;
+      if (!findProductByCode(code)) return;
 
-      const index = products.findIndex(p => p.code === code);
-      if (index === -1) return;
+      addScanLog({
+        code,
+        amount,
+        pasillo,
+        fila,
+        timestamp: entry.timestamp || new Date().toISOString(),
+        source: "central-import",
+        team
+      });
 
-      products[index].stockReal = (products[index].stockReal || 0) + amount;
-      updatedCount++;
+      added++;
     });
   });
 
-  saveProducts(products);
-  return updatedCount;
+  return added;
 }
 
 function setupCentralMode() {
@@ -834,7 +1155,7 @@ function setupCentralMode() {
           reader.onload = function (e) {
             try {
               const parsed = JSON.parse(e.target.result);
-              resolve(parsed);
+              resolve(normalizeCentralImport(parsed));
             } catch (err) {
               reject(new Error(`El archivo ${file.name} no tiene JSON válido.`));
             }
@@ -852,18 +1173,471 @@ function setupCentralMode() {
       const merged = existing.concat(parsedFiles);
       saveCentralImports(merged);
 
-      const updatedCount = applyCentralCountsToProducts(parsedFiles);
+      const added = applyCentralCountsToLogs(parsedFiles);
 
       renderCentralSummary();
       renderScanSummary();
       renderZoneProgress();
-      setCentralMessage(`Importación completada. Registros aplicados a productos: ${updatedCount}.`, "success");
+      renderCentralDashboard();
+      setCentralMessage(`Importación completada. Registros agregados: ${added}.`, "success");
 
       fileInput.value = "";
     } catch (error) {
       setCentralMessage(error.message || "Error al importar archivos del modo central.", "error");
     }
   });
+}
+
+// =========================
+// CENTRAL DE CONTROL (HISTORY)
+// =========================
+function getCentralCountsFlat() {
+  const imports = getCentralImports();
+  const all = [];
+
+  imports.forEach(fileData => {
+    const team = normalizeText(fileData.team || "");
+    const counts = Array.isArray(fileData.counts) ? fileData.counts : [];
+
+    counts.forEach(entry => {
+      all.push({
+        team,
+        code: normalizeText(entry.code),
+        amount: safeNumber(entry.amount, 0),
+        pasillo: normalizeUpper(entry.pasillo),
+        fila: normalizeUpper(entry.fila),
+        timestamp: entry.timestamp || ""
+      });
+    });
+  });
+
+  return all;
+}
+
+function buildCentralComparisonData() {
+  const products = getProducts();
+  const counts = getCentralCountsFlat();
+
+  return products.map(product => {
+    const related = counts.filter(item => item.code === product.code);
+    const contado = related.reduce((acc, item) => acc + item.amount, 0);
+    const diferencia = contado - product.stockTeorico;
+
+    const porEquipoMap = {};
+    const porZonaMap = {};
+
+    related.forEach(item => {
+      const teamKey = item.team || "Sin nombre";
+      if (!porEquipoMap[teamKey]) porEquipoMap[teamKey] = 0;
+      porEquipoMap[teamKey] += item.amount;
+
+      const zoneKey = `${item.pasillo}__${item.fila}`;
+      if (!porZonaMap[zoneKey]) {
+        porZonaMap[zoneKey] = {
+          pasillo: item.pasillo,
+          fila: item.fila,
+          total: 0
+        };
+      }
+      porZonaMap[zoneKey].total += item.amount;
+    });
+
+    return {
+      ...product,
+      contado,
+      diferencia,
+      porEquipo: Object.entries(porEquipoMap).map(([team, total]) => ({ team, total })),
+      porZona: Object.values(porZonaMap)
+    };
+  });
+}
+
+function renderCentralStats() {
+  const box = document.getElementById("centralStats");
+  if (!box) return;
+
+  const imports = getCentralImports();
+  const counts = getCentralCountsFlat();
+  const products = getProducts();
+  const comparison = buildCentralComparisonData();
+
+  const totalArchivos = imports.length;
+  const totalRegistros = counts.length;
+  const totalProductos = products.length;
+  const totalContado = counts.reduce((acc, item) => acc + item.amount, 0);
+  const conDiferencia = comparison.filter(item => item.diferencia !== 0).length;
+
+  box.innerHTML = `
+    <div class="product-item">
+      <strong>Archivos importados</strong><br>
+      ${totalArchivos}
+    </div>
+    <div class="product-item">
+      <strong>Registros importados</strong><br>
+      ${totalRegistros}
+    </div>
+    <div class="product-item">
+      <strong>Productos en catálogo</strong><br>
+      ${totalProductos}
+    </div>
+    <div class="product-item">
+      <strong>Total contado consolidado</strong><br>
+      ${totalContado}
+    </div>
+    <div class="product-item">
+      <strong>Productos con diferencia</strong><br>
+      ${conDiferencia}
+    </div>
+  `;
+}
+
+function renderCentralComparisonList() {
+  const box = document.getElementById("centralComparisonList");
+  if (!box) return;
+
+  const searchInput = document.getElementById("centralSearch");
+  const search = normalizeText(searchInput?.value).toLowerCase();
+
+  const comparison = buildCentralComparisonData();
+
+  let filtered = comparison;
+
+  if (search) {
+    filtered = comparison.filter(item =>
+      item.name.toLowerCase().includes(search) ||
+      item.code.toLowerCase().includes(search)
+    );
+  }
+
+  if (!filtered.length) {
+    box.innerHTML = "<p class='placeholder-text'>No hay resultados.</p>";
+    return;
+  }
+
+  box.innerHTML = filtered.map(item => {
+    let diffClass = "diff-ok";
+    let diffText = "OK";
+
+    if (item.diferencia < 0) {
+      diffClass = "diff-negative";
+      diffText = "FALTANTE";
+    }
+
+    if (item.diferencia > 0) {
+      diffClass = "diff-positive";
+      diffText = "SOBRANTE";
+    }
+
+    const equipos = item.porEquipo.length
+      ? item.porEquipo.map(eq => `${eq.team}: ${eq.total}`).join("<br>")
+      : "Sin registros";
+
+    const zonas = item.porZona.length
+      ? item.porZona.map(z => `${formatZoneLabel(z.pasillo, z.fila)}: ${z.total}`).join("<br>")
+      : "Sin registros";
+
+    return `
+      <div class="product-item ${diffClass}">
+        <strong>${item.name}</strong><br>
+        Código: ${item.code}<br>
+        Stock teórico: ${item.stockTeorico}<br>
+        Contado consolidado: ${item.contado}<br>
+        Diferencia: ${item.diferencia} (${diffText})<br>
+        <span class="subtitle">Por equipo</span><br>
+        ${equipos}<br>
+        <span class="subtitle">Por zona</span><br>
+        ${zonas}
+      </div>
+    `;
+  }).join("");
+}
+
+function renderCentralTeamsList() {
+  const box = document.getElementById("centralTeamsList");
+  if (!box) return;
+
+  const imports = getCentralImports();
+
+  if (!imports.length) {
+    box.innerHTML = "<p class='placeholder-text'>Todavía no se importaron equipos.</p>";
+    return;
+  }
+
+  box.innerHTML = imports.map((item, index) => {
+    const counts = Array.isArray(item.counts) ? item.counts : [];
+    const total = counts.reduce((acc, entry) => acc + safeNumber(entry.amount, 0), 0);
+
+    const zones = {};
+    counts.forEach(entry => {
+      const key = `${normalizeUpper(entry.pasillo)}__${normalizeUpper(entry.fila)}`;
+      if (!zones[key]) {
+        zones[key] = {
+          pasillo: normalizeUpper(entry.pasillo),
+          fila: normalizeUpper(entry.fila),
+          total: 0
+        };
+      }
+      zones[key].total += safeNumber(entry.amount, 0);
+    });
+
+    const zonesHtml = Object.values(zones).length
+      ? Object.values(zones).map(z => `${formatZoneLabel(z.pasillo, z.fila)}: ${z.total}`).join("<br>")
+      : "Sin detalle de zonas";
+
+    return `
+      <div class="product-item">
+        <strong>Equipo ${item.team || index + 1}</strong><br>
+        Exportado: ${item.exportedAt || "Sin fecha"}<br>
+        Registros: ${counts.length}<br>
+        Total contado: ${total}<br>
+        <span class="subtitle">Zonas trabajadas</span><br>
+        ${zonesHtml}
+      </div>
+    `;
+  }).join("");
+}
+
+function renderCentralDashboard() {
+  renderCentralStats();
+  renderCentralComparisonList();
+  renderCentralTeamsList();
+}
+
+// =========================
+// EXPORTACIÓN CENTRAL
+// =========================
+function exportToExcel() {
+  const data = buildCentralComparisonData();
+
+  if (!data.length) {
+    alert("No hay datos para exportar");
+    return;
+  }
+
+  let csv = "Codigo,Nombre,Teorico,Contado,Diferencia,Estado\n";
+
+  data.forEach(item => {
+    const estado = item.diferencia < 0 ? "FALTANTE" : item.diferencia > 0 ? "SOBRANTE" : "OK";
+    csv += [
+      escapeCsv(item.code),
+      escapeCsv(item.name),
+      item.stockTeorico,
+      item.contado,
+      item.diferencia,
+      escapeCsv(estado)
+    ].join(",") + "\n";
+  });
+
+  downloadTextFile("reporte_auditoria.csv", csv, "text/csv;charset=utf-8");
+}
+
+function exportToPDF() {
+  const data = buildCentralComparisonData();
+
+  if (!data.length) {
+    alert("No hay datos para exportar");
+    return;
+  }
+
+  const totalProductos = data.length;
+  const faltantes = data.filter(item => item.diferencia < 0).length;
+  const sobrantes = data.filter(item => item.diferencia > 0).length;
+  const ok = data.filter(item => item.diferencia === 0).length;
+
+  let rows = "";
+
+  data.forEach(item => {
+    const estado = item.diferencia < 0 ? "FALTANTE" : item.diferencia > 0 ? "SOBRANTE" : "OK";
+    rows += `
+      <tr>
+        <td>${item.code}</td>
+        <td>${item.name}</td>
+        <td>${item.stockTeorico}</td>
+        <td>${item.contado}</td>
+        <td>${item.diferencia}</td>
+        <td>${estado}</td>
+      </tr>
+    `;
+  });
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+      <meta charset="UTF-8">
+      <title>Reporte de Auditoría</title>
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          padding: 24px;
+          color: #111;
+        }
+        h1 {
+          margin-bottom: 8px;
+        }
+        .meta {
+          margin-bottom: 20px;
+        }
+        .summary {
+          display: flex;
+          gap: 12px;
+          flex-wrap: wrap;
+          margin-bottom: 20px;
+        }
+        .summary-box {
+          border: 1px solid #ccc;
+          padding: 10px 14px;
+          border-radius: 8px;
+          min-width: 140px;
+        }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          font-size: 12px;
+        }
+        th, td {
+          border: 1px solid #ccc;
+          padding: 8px;
+          text-align: left;
+        }
+        th {
+          background: #f3f3f3;
+        }
+      </style>
+    </head>
+    <body>
+      <h1>Reporte de Auditoría</h1>
+      <div class="meta">
+        <div>Fecha: ${new Date().toLocaleString()}</div>
+      </div>
+
+      <div class="summary">
+        <div class="summary-box"><strong>Productos</strong><br>${totalProductos}</div>
+        <div class="summary-box"><strong>OK</strong><br>${ok}</div>
+        <div class="summary-box"><strong>Faltantes</strong><br>${faltantes}</div>
+        <div class="summary-box"><strong>Sobrantes</strong><br>${sobrantes}</div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Código</th>
+            <th>Producto</th>
+            <th>Teórico</th>
+            <th>Contado</th>
+            <th>Diferencia</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows}
+        </tbody>
+      </table>
+    </body>
+    </html>
+  `;
+
+  const win = window.open("", "_blank");
+  if (!win) {
+    alert("El navegador bloqueó la ventana del PDF. Permití ventanas emergentes.");
+    return;
+  }
+
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => win.print(), 500);
+}
+
+function setupCentralExportButtons() {
+  const excelBtn = document.getElementById("exportExcelBtn");
+  const pdfBtn = document.getElementById("exportPdfBtn");
+
+  if (excelBtn) {
+    excelBtn.addEventListener("click", exportToExcel);
+  }
+
+  if (pdfBtn) {
+    pdfBtn.addEventListener("click", exportToPDF);
+  }
+}
+
+// =========================
+// CENTRAL DE CONTROL - SETUP
+// =========================
+function setupHistoryPage() {
+  const importBtn = document.getElementById("centralHistoryImportBtn");
+  const fileInput = document.getElementById("centralHistoryFileInput");
+  const clearBtn = document.getElementById("clearCentralDataBtn");
+  const searchInput = document.getElementById("centralSearch");
+
+  if (!importBtn || !fileInput) {
+    renderCentralDashboard();
+    setupCentralExportButtons();
+    return;
+  }
+
+  renderCentralDashboard();
+  setupCentralExportButtons();
+
+  if (searchInput) {
+    searchInput.addEventListener("input", () => {
+      renderCentralComparisonList();
+    });
+  }
+
+  importBtn.addEventListener("click", async () => {
+    if (!fileInput.files || fileInput.files.length === 0) {
+      setHistoryMessage("Seleccioná uno o más archivos JSON.", "error");
+      return;
+    }
+
+    const files = Array.from(fileInput.files);
+
+    try {
+      const parsedFiles = await Promise.all(files.map(file => {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+
+          reader.onload = function (e) {
+            try {
+              const parsed = JSON.parse(e.target.result);
+              resolve(normalizeCentralImport(parsed));
+            } catch (err) {
+              reject(new Error(`El archivo ${file.name} no tiene JSON válido.`));
+            }
+          };
+
+          reader.onerror = function () {
+            reject(new Error(`No se pudo leer el archivo ${file.name}.`));
+          };
+
+          reader.readAsText(file, "UTF-8");
+        });
+      }));
+
+      const existing = getCentralImports();
+      const merged = existing.concat(parsedFiles);
+      saveCentralImports(merged);
+
+      renderCentralDashboard();
+      renderCentralSummary();
+      setHistoryMessage(`Archivos importados correctamente: ${parsedFiles.length}.`, "success");
+      fileInput.value = "";
+    } catch (error) {
+      setHistoryMessage(error.message || "Error al importar archivos.", "error");
+    }
+  });
+
+  if (clearBtn) {
+    clearBtn.addEventListener("click", () => {
+      clearCentralImports();
+      renderCentralDashboard();
+      renderCentralSummary();
+      setHistoryMessage("Datos centrales borrados correctamente.", "success");
+    });
+  }
 }
 
 // =========================
@@ -878,12 +1652,14 @@ function setupScanPage() {
 
   if (!input) return;
 
-  populateScanFilters();
+  renderCurrentZoneInputs();
+  renderTeamNameInput();
   renderScanSummary();
   renderZoneProgress();
   renderCentralSummary();
   setupScanInputAuto();
-  setupZoneFilters();
+  setupZoneControls();
+  setupTeamControls();
   setupCentralMode();
 
   input.focus();
@@ -902,49 +1678,14 @@ function setupScanPage() {
 
   if (minusBtn) {
     minusBtn.addEventListener("click", () => {
-      const code = normalizeText(document.getElementById("resultCode")?.textContent);
-      if (!code) return;
-
-      const updated = updateProductReal(code, -1);
-      saveLastScan({ code, amount: -1 });
-
-      if (updated) {
-        setScanMessage(`Se restó 1 a ${updated.name}.`, "success");
-        showScannedProduct(updated);
-        renderScanSummary();
-        renderZoneProgress();
-        playBeep("ok");
-        vibrateDevice(60);
-      }
-
+      subtractOneFromCurrentProduct();
       input.focus();
     });
   }
 
   if (undoBtn) {
     undoBtn.addEventListener("click", () => {
-      const lastScan = getLastScan();
-
-      if (!lastScan) {
-        setScanMessage("No hay último escaneo para deshacer.", "error");
-        playBeep("error");
-        vibrateDevice([100, 60, 100]);
-        return;
-      }
-
-      const reverseAmount = lastScan.amount === 1 ? -1 : 1;
-      const updated = updateProductReal(lastScan.code, reverseAmount);
-
-      if (updated) {
-        setScanMessage("Último escaneo deshecho correctamente.", "success");
-        showScannedProduct(updated);
-        renderScanSummary();
-        renderZoneProgress();
-        playBeep("ok");
-        vibrateDevice(70);
-      }
-
-      clearLastScan();
+      undoLastScanAction();
       input.focus();
     });
   }
@@ -1009,10 +1750,15 @@ function setupLogin() {
 }
 
 // =========================
-// MIGRACIÓN SUAVE DE DATOS
+// MIGRACIÓN SUAVE
 // =========================
 function migrateStoredProductsIfNeeded() {
-  const products = getProducts();
+  const products = getProducts().map(product => ({
+    name: product.name,
+    code: product.code,
+    stockTeorico: product.stockTeorico
+  }));
+
   saveProducts(products);
 }
 
@@ -1024,4 +1770,5 @@ document.addEventListener("DOMContentLoaded", () => {
   setupLogin();
   setupProductsPage();
   setupScanPage();
+  setupHistoryPage();
 });

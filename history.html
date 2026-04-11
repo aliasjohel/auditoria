@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Historial</title>
+  <title>Central de Control</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
   <div class="navbar">
-    <h2>Historial</h2>
+    <h2>Central de Control</h2>
     <div class="nav-actions">
       <button onclick="goTo('home.html')" class="back-btn">Volver</button>
       <button onclick="logout()" class="logout">Cerrar sesión</button>
@@ -18,8 +18,38 @@
 
   <div class="page">
     <div class="card page-card">
-      <h3>Historial de controles</h3>
-      <p class="placeholder-text">Acá después vamos a mostrar los controles guardados.</p>
+      <h3>Importar conteos de equipos</h3>
+
+      <input type="file" id="centralHistoryFileInput" accept=".json" multiple>
+      <button id="centralHistoryImportBtn" type="button">Importar archivos</button>
+      <button id="clearCentralDataBtn" type="button" class="danger-btn">Borrar datos centrales</button>
+
+      <p id="historyMsg" class="info-msg"></p>
+    </div>
+
+    <div class="card page-card mt-20">
+      <h3>Resumen general</h3>
+      <div id="centralStats" class="products-list"></div>
+      <div style="display:flex; gap:10px; margin-bottom:10px;">
+  <button id="exportExcelBtn">Exportar Excel</button>
+  <button id="exportPdfBtn" class="secondary-btn">Exportar PDF</button>
+</div>
+    </div>
+
+    <div class="card page-card mt-20">
+      <h3>Comparación contra stock teórico</h3>
+      <input 
+  type="text" 
+  id="centralSearch" 
+  placeholder="Buscar por nombre o código..."
+  style="margin-bottom:10px;"
+>
+      <div id="centralComparisonList" class="products-list"></div>
+    </div>
+
+    <div class="card page-card mt-20">
+      <h3>Detalle por equipos importados</h3>
+      <div id="centralTeamsList" class="products-list"></div>
     </div>
   </div>
 
