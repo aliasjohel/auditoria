@@ -5,7 +5,7 @@ const USER = "Jesus96";
 const PASS = "soyunapuerca";
 
 // =========================
-// PROTECCIÓN
+// PROTEGER PÁGINAS
 // =========================
 const currentPage = window.location.pathname.split("/").pop() || "index.html";
 const protectedPages = ["home.html", "new-control.html", "products.html", "history.html", "scan.html"];
@@ -45,467 +45,431 @@ function saveProducts(products) {
   localStorage.setItem("products", JSON.stringify(products));
 }
 
-// =========================
-// CONTROLES
-// =========================
-function getControls() {
-  return JSON.parse(localStorage.getItem("controls")) || [];
+function renderProducts() {
+  const list = document.getElementById("productsList");
+  if (!list) return;
+
+  const products = getProducts();
+
+  if (products.length === 0) {
+    list.innerHTML = "<p class='placeholder-text'>Todavía no hay productos cargados.</p>";
+    return;
+  }
+
+  list.innerHTML = products.map(p => `
+    <div class="product-item">
+      <strong>${p.name}</strong><br>
+      Código: ${p.code}<br>
+      Stock teórico: ${p.stockTeorico}<br>
+      Stock real: ${p.stockReal || 0}<br>
+      Diferencia: ${(p.stockReal || 0) - p.stockTeorico}
+    </div>
+  `).join("");
 }
 
-function saveControls(data) {
-  localStorage.setItem("controls", JSON.stringify(data));
-}
-
-// =========================
-// IMPORTACIONES CENTRALES
-// =========================
-function getCentralImports() {
-  return JSON.parse(localStorage.getItem("centralImports")) || [];
-}
-
-function saveCentralImports(data) {
-  localStorage.setItem("centralImports", JSON.stringify(data));
-}
-
-function clearCentralImports() {
-  localStorage.setItem("centralImports", JSON.stringify([]));
-}
-
-// =========================
-// NUEVO CONTROL
-// =========================
-function setupNewControlPage() {
-  const btn = document.getElementById("saveControlBtn");
+function setupProductsPage() {
+  const btn = document.getElementById("saveProductBtn");
   if (!btn) return;
 
-  btn.addEventListener("click", () => {
-    const cliente = document.getElementById("controlCliente")?.value.trim() || "";
-    const sucursal = document.getElementById("controlSucursal")?.value.trim() || "";
-    const fecha = document.getElementById("controlFecha")?.value || "";
-    const obs = document.getElementById("controlObs")?.value.trim() || "";
-    const msg = document.getElementById("controlMsg");
+  renderProducts();
 
-    if (!cliente || !sucursal || !fecha) {
-      if (msg) msg.textContent = "Completá cliente, sucursal y fecha.";
+  btn.addEventListener("click", () => {
+    const name = document.getElementById("productName").value.trim();
+    const code = document.getElementById("productCode").value.trim();
+    const stock = parseInt(document.getElementById("productStock").value);
+    const msg = document.getElementById("productMsg");
+
+    if (!name || !code || isNaN(stock)) {
+      if (msg) msg.textContent = "Completá nombre, código y stock teórico.";
       return;
     }
 
-    const controls = getControls();
+    const products = getProducts();
+    const exists = products.find(p => p.code === code);
 
-    controls.push({
-      id: Date.now(),
-      cliente,
-      sucursal,
-      fecha,
-      observaciones: obs
-    });
-
-    saveControls(controls);
-
-    if (msg) msg.textContent = "Control guardado correctamente.";
-
-    document.getElementById("controlCliente").value = "";
-    document.getElementById("controlSucursal").value = "";
-    document.getElementById("controlFecha").value = "";
-    document.getElementById("controlObs").value = "";
-  });
-}
-
-// =========================
-// CENTRAL
-// =========================
-function buildCentralComparisonData() {
-  const products = getProducts();
-  const imports = getCentralImports();
-  const counts = [];
-
-  imports.forEach(file => {
-    const list = Array.isArray(file.counts) ? file.counts : [];
-    list.forEach(item => counts.push(item));
-  });
-
-  return products.map(product => {
-    const related = counts.filter(c => c.code === product.code);
-    const contado = related.reduce((acc, item) => acc + (parseInt(item.amount, 10) || 0), 0);
-
-    return {
-      ...product,
-      contado,
-      diferencia: contado - (parseInt(product.stockTeorico, 10) || 0)
-    };
-  });
-}
-
-function renderCentralStats() {
-  const box = document.getElementById("centralStats");
-  if (!box) return;
-
-  const imports = getCentralImports();
-  const data = buildCentralComparisonData();
-
-  const totalArchivos = imports.length;
-  const totalProductos = data.length;
-  const totalContado = data.reduce((acc, item) => acc + item.contado, 0);
-  const conDiferencia = data.filter(item => item.diferencia !== 0).length;
-
-  box.innerHTML = `
-    <div class="product-item">
-      <strong>Archivos importados</strong><br>
-      ${totalArchivos}
-    </div>
-    <div class="product-item">
-      <strong>Productos</strong><br>
-      ${totalProductos}
-    </div>
-    <div class="product-item">
-      <strong>Total contado</strong><br>
-      ${totalContado}
-    </div>
-    <div class="product-item">
-      <strong>Con diferencia</strong><br>
-      ${conDiferencia}
-    </div>
-  `;
-}
-
-function renderCentralComparisonList() {
-  const box = document.getElementById("centralComparisonList");
-  if (!box) return;
-
-  const searchInput = document.getElementById("centralSearch");
-  const search = (searchInput?.value || "").trim().toLowerCase();
-
-  let data = buildCentralComparisonData();
-
-  if (search) {
-    data = data.filter(item =>
-      String(item.name || "").toLowerCase().includes(search) ||
-      String(item.code || "").toLowerCase().includes(search)
-    );
-  }
-
-  if (!data.length) {
-    box.innerHTML = "<p class='placeholder-text'>No hay resultados.</p>";
-    return;
-  }
-
-  box.innerHTML = data.map(item => {
-    let diffClass = "diff-ok";
-    let diffText = "OK";
-
-    if (item.diferencia < 0) {
-      diffClass = "diff-negative";
-      diffText = "FALTANTE";
-    } else if (item.diferencia > 0) {
-      diffClass = "diff-positive";
-      diffText = "SOBRANTE";
+    if (exists) {
+      if (msg) msg.textContent = "Ya existe un producto con ese código.";
+      return;
     }
 
-    return `
-      <div class="product-item ${diffClass}">
-        <strong>${item.name}</strong><br>
-        Código: ${item.code}<br>
-        Stock teórico: ${item.stockTeorico}<br>
-        Contado: ${item.contado}<br>
-        Diferencia: ${item.diferencia} (${diffText})
-      </div>
-    `;
-  }).join("");
+    products.push({
+      name,
+      code,
+      stockTeorico: stock,
+      stockReal: 0
+    });
+
+    saveProducts(products);
+
+    document.getElementById("productName").value = "";
+    document.getElementById("productCode").value = "";
+    document.getElementById("productStock").value = "";
+
+    if (msg) msg.textContent = "Producto guardado correctamente.";
+
+    renderProducts();
+    renderScanSummary();
+  });
 }
 
-function renderCentralTeamsList() {
-  const box = document.getElementById("centralTeamsList");
+// =========================
+// ÚLTIMO ESCANEO
+// =========================
+function getLastScan() {
+  return JSON.parse(localStorage.getItem("lastScan")) || null;
+}
+
+function saveLastScan(scan) {
+  localStorage.setItem("lastScan", JSON.stringify(scan));
+}
+
+function clearLastScan() {
+  localStorage.removeItem("lastScan");
+}
+
+// =========================
+// SONIDO / VIBRACIÓN
+// =========================
+function playBeep(type = "ok") {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    if (type === "ok") {
+      osc.frequency.value = 880;
+      gain.gain.value = 0.05;
+      osc.start();
+      osc.stop(ctx.currentTime + 0.08);
+    } else {
+      osc.frequency.value = 220;
+      gain.gain.value = 0.06;
+      osc.start();
+      osc.stop(ctx.currentTime + 0.18);
+    }
+  } catch (e) {
+    // no romper si el navegador bloquea audio
+  }
+}
+
+function vibrateDevice(pattern = 100) {
+  if ("vibrate" in navigator) {
+    navigator.vibrate(pattern);
+  }
+}
+
+function setScanMessage(text, type = "info") {
+  const msg = document.getElementById("scanMsg");
+  if (!msg) return;
+
+  msg.textContent = text;
+  msg.classList.remove("success-msg", "error-msg");
+
+  if (type === "success") msg.classList.add("success-msg");
+  if (type === "error") msg.classList.add("error-msg");
+}
+
+// =========================
+// ESCANEO - LÓGICA
+// =========================
+function findProductByCode(code) {
+  return getProducts().find(p => p.code === code);
+}
+
+function updateProductReal(code, amount) {
+  const products = getProducts();
+  const index = products.findIndex(p => p.code === code);
+
+  if (index === -1) return null;
+
+  products[index].stockReal = (products[index].stockReal || 0) + amount;
+
+  if (products[index].stockReal < 0) {
+    products[index].stockReal = 0;
+  }
+
+  saveProducts(products);
+  return products[index];
+}
+
+function showScannedProduct(product) {
+  const box = document.getElementById("scanResult");
+  if (!box || !product) return;
+
+  document.getElementById("resultName").textContent = product.name;
+  document.getElementById("resultCode").textContent = product.code;
+  document.getElementById("resultTeorico").textContent = product.stockTeorico;
+  document.getElementById("resultReal").textContent = product.stockReal || 0;
+  document.getElementById("resultDiff").textContent = (product.stockReal || 0) - product.stockTeorico;
+
+  box.classList.remove("hidden");
+}
+
+function renderScanSummary() {
+  const box = document.getElementById("scanSummary");
   if (!box) return;
 
-  const imports = getCentralImports();
+  const products = getProducts();
 
-  if (!imports.length) {
-    box.innerHTML = "<p class='placeholder-text'>Todavía no se importaron equipos.</p>";
+  if (products.length === 0) {
+    box.innerHTML = "<p class='placeholder-text'>No hay productos cargados todavía.</p>";
     return;
   }
 
-  box.innerHTML = imports.map((item, index) => {
-    const counts = Array.isArray(item.counts) ? item.counts : [];
-    const total = counts.reduce((acc, entry) => acc + (parseInt(entry.amount, 10) || 0), 0);
-
-    return `
-      <div class="product-item">
-        <strong>Equipo ${item.team || index + 1}</strong><br>
-        Exportado: ${item.exportedAt || "Sin fecha"}<br>
-        Registros: ${counts.length}<br>
-        Total contado: ${total}
-      </div>
-    `;
-  }).join("");
+  box.innerHTML = products.map(p => `
+    <div class="product-item">
+      <strong>${p.name}</strong><br>
+      Código: ${p.code}<br>
+      Teórico: ${p.stockTeorico}<br>
+      Real: ${p.stockReal || 0}<br>
+      Diferencia: ${(p.stockReal || 0) - p.stockTeorico}
+    </div>
+  `).join("");
 }
 
-function renderCentralDashboard() {
-  renderCentralStats();
-  renderCentralComparisonList();
-  renderCentralTeamsList();
-}
+function processScannedCode(rawCode) {
+  const code = String(rawCode).trim();
+  if (!code) return;
 
-// =========================
-// EXPORTAR EXCEL
-// =========================
-function exportToExcel() {
-  const data = buildCentralComparisonData();
+  const found = findProductByCode(code);
 
-  if (!data.length) {
-    alert("No hay datos para exportar");
+  if (!found) {
+    setScanMessage(`Producto no encontrado: ${code}`, "error");
+    playBeep("error");
+    vibrateDevice([120, 80, 120]);
     return;
   }
 
-  let csv = "Codigo,Nombre,Teorico,Contado,Diferencia\n";
+  const updated = updateProductReal(code, 1);
+  saveLastScan({ code, amount: 1 });
 
-  data.forEach(item => {
-    csv += `"${item.code}","${item.name}",${item.stockTeorico},${item.contado},${item.diferencia}\n`;
+  setScanMessage(`Escaneo sumado: ${updated.name}`, "success");
+  showScannedProduct(updated);
+  renderScanSummary();
+  playBeep("ok");
+  vibrateDevice(80);
+}
+
+// =========================
+// CÁMARA
+// =========================
+let html5QrCodeInstance = null;
+let cameraRunning = false;
+let lastCameraScan = "";
+let lastCameraScanTime = 0;
+let scanAutoTimeout = null;
+
+async function startCameraScanner() {
+  const reader = document.getElementById("reader");
+  if (!reader || cameraRunning) return;
+
+  if (typeof Html5Qrcode === "undefined") {
+    setScanMessage("No se cargó la librería de cámara.", "error");
+    return;
+  }
+
+  reader.classList.remove("hidden");
+
+  try {
+    html5QrCodeInstance = new Html5Qrcode("reader");
+
+    await html5QrCodeInstance.start(
+      { facingMode: "environment" },
+      {
+        fps: 10,
+        qrbox: { width: 250, height: 140 },
+        aspectRatio: 1.7778
+      },
+      (decodedText) => {
+        const now = Date.now();
+
+        if (decodedText === lastCameraScan && (now - lastCameraScanTime) < 1200) {
+          return;
+        }
+
+        lastCameraScan = decodedText;
+        lastCameraScanTime = now;
+
+        processScannedCode(decodedText);
+      },
+      () => {
+        // ignorar errores de lectura continua
+      }
+    );
+
+    cameraRunning = true;
+    setScanMessage("Cámara activa. Apuntá al código.", "success");
+  } catch (error) {
+    console.error("Error al abrir cámara:", error);
+    reader.classList.add("hidden");
+    setScanMessage("No se pudo abrir la cámara. Revisá permisos del navegador.", "error");
+  }
+}
+
+async function stopCameraScanner() {
+  const reader = document.getElementById("reader");
+
+  if (!cameraRunning || !html5QrCodeInstance) {
+    if (reader) reader.classList.add("hidden");
+    return;
+  }
+
+  try {
+    await html5QrCodeInstance.stop();
+    await html5QrCodeInstance.clear();
+  } catch (error) {
+    console.warn("Error al cerrar cámara:", error);
+  }
+
+  cameraRunning = false;
+  html5QrCodeInstance = null;
+
+  if (reader) reader.classList.add("hidden");
+  setScanMessage("Cámara detenida.");
+}
+
+// =========================
+// ESCANEO POR INPUT / PISTOLA
+// =========================
+function setupScanInputAuto() {
+  const input = document.getElementById("scanCode");
+  if (!input) return;
+
+  input.addEventListener("input", () => {
+    clearTimeout(scanAutoTimeout);
+
+    scanAutoTimeout = setTimeout(() => {
+      const code = input.value.trim();
+      if (!code) return;
+
+      processScannedCode(code);
+      input.value = "";
+      input.focus();
+    }, 180);
   });
 
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
 
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "reporte_auditoria.csv";
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+      const code = input.value.trim();
+      if (!code) return;
 
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
-// =========================
-// EXPORTAR PDF
-// =========================
-function exportToPDF() {
-  const data = buildCentralComparisonData();
-
-  if (!data.length) {
-    alert("No hay datos para exportar");
-    return;
-  }
-
-  const controls = getControls();
-  const last = controls[controls.length - 1] || {};
-
-  const totalProductos = data.length;
-  const faltantes = data.filter(item => item.diferencia < 0).length;
-  const sobrantes = data.filter(item => item.diferencia > 0).length;
-  const ok = data.filter(item => item.diferencia === 0).length;
-
-  let rows = "";
-
-  data.forEach(item => {
-    const estado = item.diferencia < 0 ? "FALTANTE" : item.diferencia > 0 ? "SOBRANTE" : "OK";
-
-    rows += `
-      <tr>
-        <td>${item.code}</td>
-        <td>${item.name}</td>
-        <td>${item.stockTeorico}</td>
-        <td>${item.contado}</td>
-        <td>${item.diferencia}</td>
-        <td>${estado}</td>
-      </tr>
-    `;
+      clearTimeout(scanAutoTimeout);
+      processScannedCode(code);
+      input.value = "";
+      input.focus();
+    }
   });
-
-  const html = `
-    <!DOCTYPE html>
-    <html lang="es">
-    <head>
-      <meta charset="UTF-8">
-      <title>Reporte de Auditoría</title>
-      <style>
-        body {
-          font-family: Arial, sans-serif;
-          padding: 24px;
-          color: #111;
-        }
-        h1 {
-          margin-bottom: 10px;
-        }
-        .meta {
-          margin-bottom: 18px;
-        }
-        .summary {
-          display: flex;
-          gap: 12px;
-          flex-wrap: wrap;
-          margin-bottom: 20px;
-        }
-        .summary-box {
-          border: 1px solid #ccc;
-          padding: 10px 14px;
-          border-radius: 8px;
-          min-width: 120px;
-        }
-        table {
-          width: 100%;
-          border-collapse: collapse;
-          font-size: 12px;
-        }
-        th, td {
-          border: 1px solid #ccc;
-          padding: 8px;
-          text-align: left;
-        }
-        th {
-          background: #f3f3f3;
-        }
-      </style>
-    </head>
-    <body>
-      <h1>Reporte de Auditoría</h1>
-
-      <div class="meta">
-        <p><strong>Cliente:</strong> ${last.cliente || "-"}</p>
-        <p><strong>Sucursal:</strong> ${last.sucursal || "-"}</p>
-        <p><strong>Fecha:</strong> ${last.fecha || "-"}</p>
-        <p><strong>Observaciones:</strong> ${last.observaciones || "-"}</p>
-      </div>
-
-      <div class="summary">
-        <div class="summary-box"><strong>Productos</strong><br>${totalProductos}</div>
-        <div class="summary-box"><strong>OK</strong><br>${ok}</div>
-        <div class="summary-box"><strong>Faltantes</strong><br>${faltantes}</div>
-        <div class="summary-box"><strong>Sobrantes</strong><br>${sobrantes}</div>
-      </div>
-
-      <table>
-        <thead>
-          <tr>
-            <th>Código</th>
-            <th>Producto</th>
-            <th>Teórico</th>
-            <th>Contado</th>
-            <th>Diferencia</th>
-            <th>Estado</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${rows}
-        </tbody>
-      </table>
-    </body>
-    </html>
-  `;
-
-  const win = window.open("", "_blank");
-  if (!win) {
-    alert("El navegador bloqueó la ventana del PDF. Permití ventanas emergentes.");
-    return;
-  }
-
-  win.document.open();
-  win.document.write(html);
-  win.document.close();
-  win.focus();
-  setTimeout(() => win.print(), 500);
 }
 
 // =========================
-// HISTORY
+// SETUP SCAN PAGE
 // =========================
-function setupHistoryPage() {
-  const excelBtn = document.getElementById("exportExcelBtn");
-  const pdfBtn = document.getElementById("exportPdfBtn");
-  const searchInput = document.getElementById("centralSearch");
-  const importBtn = document.getElementById("centralHistoryImportBtn");
-  const fileInput = document.getElementById("centralHistoryFileInput");
-  const clearBtn = document.getElementById("clearCentralDataBtn");
-  const historyMsg = document.getElementById("historyMsg");
+function setupScanPage() {
+  const input = document.getElementById("scanCode");
+  const minusBtn = document.getElementById("minusOneBtn");
+  const undoBtn = document.getElementById("undoScanBtn");
+  const startCameraBtn = document.getElementById("startCameraBtn");
+  const stopCameraBtn = document.getElementById("stopCameraBtn");
 
-  renderCentralDashboard();
+  if (!input) return;
 
-  if (excelBtn) {
-    excelBtn.addEventListener("click", exportToExcel);
-  }
+  renderScanSummary();
+  setupScanInputAuto();
+  input.focus();
 
-  if (pdfBtn) {
-    pdfBtn.addEventListener("click", exportToPDF);
-  }
-
-  if (searchInput) {
-    searchInput.addEventListener("input", () => {
-      renderCentralComparisonList();
+  if (startCameraBtn) {
+    startCameraBtn.addEventListener("click", async () => {
+      await startCameraScanner();
     });
   }
 
-  if (importBtn && fileInput) {
-    importBtn.addEventListener("click", async () => {
-      if (!fileInput.files || fileInput.files.length === 0) {
-        if (historyMsg) historyMsg.textContent = "Seleccioná uno o más archivos JSON.";
+  if (stopCameraBtn) {
+    stopCameraBtn.addEventListener("click", async () => {
+      await stopCameraScanner();
+    });
+  }
+
+  if (minusBtn) {
+    minusBtn.addEventListener("click", () => {
+      const code = document.getElementById("resultCode").textContent.trim();
+      if (!code) return;
+
+      const updated = updateProductReal(code, -1);
+      saveLastScan({ code, amount: -1 });
+
+      if (updated) {
+        setScanMessage(`Se restó 1 a ${updated.name}.`, "success");
+        showScannedProduct(updated);
+        renderScanSummary();
+        playBeep("ok");
+        vibrateDevice(60);
+      }
+
+      input.focus();
+    });
+  }
+
+  if (undoBtn) {
+    undoBtn.addEventListener("click", () => {
+      const lastScan = getLastScan();
+
+      if (!lastScan) {
+        setScanMessage("No hay último escaneo para deshacer.", "error");
+        playBeep("error");
+        vibrateDevice([100, 60, 100]);
         return;
       }
 
-      const files = Array.from(fileInput.files);
+      const reverseAmount = lastScan.amount === 1 ? -1 : 1;
+      const updated = updateProductReal(lastScan.code, reverseAmount);
 
-      try {
-        const parsedFiles = await Promise.all(files.map(file => {
-          return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-
-            reader.onload = function (e) {
-              try {
-                const parsed = JSON.parse(e.target.result);
-                resolve(parsed);
-              } catch (err) {
-                reject(new Error(`El archivo ${file.name} no tiene JSON válido.`));
-              }
-            };
-
-            reader.onerror = function () {
-              reject(new Error(`No se pudo leer el archivo ${file.name}.`));
-            };
-
-            reader.readAsText(file, "UTF-8");
-          });
-        }));
-
-        const existing = getCentralImports();
-        saveCentralImports(existing.concat(parsedFiles));
-        renderCentralDashboard();
-
-        if (historyMsg) historyMsg.textContent = `Archivos importados correctamente: ${parsedFiles.length}.`;
-        fileInput.value = "";
-      } catch (error) {
-        if (historyMsg) historyMsg.textContent = error.message || "Error al importar archivos.";
+      if (updated) {
+        setScanMessage("Último escaneo deshecho correctamente.", "success");
+        showScannedProduct(updated);
+        renderScanSummary();
+        playBeep("ok");
+        vibrateDevice(70);
       }
+
+      clearLastScan();
+      input.focus();
     });
   }
 
-  if (clearBtn) {
-    clearBtn.addEventListener("click", () => {
-      clearCentralImports();
-      renderCentralDashboard();
-      if (historyMsg) historyMsg.textContent = "Datos centrales borrados correctamente.";
-    });
-  }
+  window.addEventListener("beforeunload", () => {
+    if (cameraRunning) {
+      stopCameraScanner();
+    }
+  });
 }
 
 // =========================
-// LOGIN
+// DOM READY
 // =========================
-function setupLogin() {
+document.addEventListener("DOMContentLoaded", () => {
   const userInput = document.getElementById("user");
   const passInput = document.getElementById("pass");
   const loginBtn = document.getElementById("loginBtn");
   const error = document.getElementById("error");
   const rememberCheckbox = document.getElementById("rememberUser");
-  const togglePass = document.getElementById("togglePass");
 
-  if (!loginBtn || !userInput || !passInput) return;
-
+  // recordar usuario
   const savedUser = localStorage.getItem("rememberedUser");
-  if (savedUser) {
+  if (userInput && savedUser) {
     userInput.value = savedUser;
     if (rememberCheckbox) rememberCheckbox.checked = true;
   }
 
-  if (togglePass) {
-    togglePass.onclick = () => {
+  // mostrar contraseña
+  const togglePass = document.getElementById("togglePass");
+  if (togglePass && passInput) {
+    togglePass.addEventListener("click", () => {
       if (passInput.type === "password") {
         passInput.type = "text";
         togglePass.textContent = "🙈";
@@ -513,42 +477,32 @@ function setupLogin() {
         passInput.type = "password";
         togglePass.textContent = "👁";
       }
-    };
+    });
   }
 
-  loginBtn.onclick = () => {
-    const user = userInput.value.trim();
-    const pass = passInput.value.trim();
-    const remember = rememberCheckbox?.checked;
+  // login
+  if (loginBtn) {
+    loginBtn.addEventListener("click", () => {
+      const user = userInput.value.trim();
+      const pass = passInput.value.trim();
+      const remember = rememberCheckbox?.checked;
 
-    if (user.toLowerCase() === USER.toLowerCase() && pass === PASS) {
-      localStorage.setItem("logged", "true");
+      if (user.toLowerCase() === USER.toLowerCase() && pass === PASS) {
+        localStorage.setItem("logged", "true");
 
-      if (remember) {
-        localStorage.setItem("rememberedUser", user);
+        if (remember) {
+          localStorage.setItem("rememberedUser", user);
+        } else {
+          localStorage.removeItem("rememberedUser");
+        }
+
+        window.location.href = "home.html";
       } else {
-        localStorage.removeItem("rememberedUser");
+        if (error) error.textContent = "Usuario o contraseña incorrectos";
       }
+    });
+  }
 
-      window.location.href = "home.html";
-    } else {
-      if (error) error.textContent = "Usuario o contraseña incorrectos";
-    }
-  };
-
-  passInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      loginBtn.click();
-    }
-  });
-}
-
-// =========================
-// INIT
-// =========================
-document.addEventListener("DOMContentLoaded", () => {
-  setupLogin();
-  setupNewControlPage();
-  setupHistoryPage();
+  setupProductsPage();
+  setupScanPage();
 });
