@@ -6,7 +6,7 @@
   <title>Productos</title>
   <link rel="stylesheet" href="style.css">
   <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#0d6efd">
+  <meta name="theme-color" content="#0d6efd">
 </head>
 <body>
 
@@ -25,6 +25,13 @@
       <input type="text" id="productName" placeholder="Nombre del producto">
       <input type="text" id="productCode" placeholder="Código de barras">
       <input type="number" id="productStock" placeholder="Stock teórico">
+
+      <div class="scan-top-actions">
+        <button id="scanProductCodeBtn" type="button">Escanear código</button>
+        <button id="stopProductCameraBtn" type="button" class="secondary-btn">Cerrar cámara</button>
+      </div>
+
+      <div id="productReader" class="reader-box hidden"></div>
 
       <button id="saveProductBtn">Guardar producto</button>
 
@@ -50,6 +57,7 @@
     </div>
   </div>
 
+  <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="app.js"></script>
 </body>
 </html>

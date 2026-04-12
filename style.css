@@ -386,3 +386,8 @@ select {
   background: #111;
   color: white;
 }
+
+.placeholder-text {
+  color: #aaaaaa;
+  font-size: 14px;
+}
