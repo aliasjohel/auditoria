@@ -1220,6 +1220,49 @@ function setupScanPage() {
 }
 
 // =========================
+// SERVICE WORKER / ACTUALIZACIONES
+// =========================
+let refreshing = false;
+
+function registerServiceWorker() {
+  if (!("serviceWorker" in navigator)) return;
+
+  window.addEventListener("load", async () => {
+    try {
+      const registration = await navigator.serviceWorker.register("./sw.js");
+
+      registration.addEventListener("updatefound", () => {
+        const newWorker = registration.installing;
+        if (!newWorker) return;
+
+        newWorker.addEventListener("statechange", () => {
+          if (
+            newWorker.state === "installed" &&
+            navigator.serviceWorker.controller
+          ) {
+            const confirmUpdate = confirm(
+              "Hay una nueva versión disponible. ¿Querés actualizar ahora?"
+            );
+
+            if (confirmUpdate) {
+              newWorker.postMessage({ type: "SKIP_WAITING" });
+            }
+          }
+        });
+      });
+
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (refreshing) return;
+        refreshing = true;
+        window.location.reload();
+      });
+    } catch (error) {
+      console.error("Error registrando service worker:", error);
+    }
+  });
+}
+
+// =========================
 // INIT
 // =========================
 document.addEventListener("DOMContentLoaded", () => {
@@ -1227,4 +1270,5 @@ document.addEventListener("DOMContentLoaded", () => {
   setupLoginPage();
   setupProductsPage();
   setupScanPage();
+  registerServiceWorker();
 });
