@@ -79,6 +79,12 @@ function saveProducts(products) {
   localStorage.setItem(STORAGE_KEYS.products, JSON.stringify(products));
 }
 
+function getDiffClass(diff) {
+  if (diff === 0) return "diff-ok";
+  if (diff < 0) return "diff-negative";
+  return "diff-positive";
+}
+
 function getLastScan() {
   return safeParse(localStorage.getItem(STORAGE_KEYS.lastScan), null);
 }
@@ -234,20 +240,23 @@ function renderProducts() {
 
   list.innerHTML = products
     .map((p) => {
-      const diff = (p.stockReal || 0) - (p.stockTeorico || 0);
+      const teorico = p.stockTeorico || 0;
+      const real = p.stockReal || 0;
+      const diff = real - teorico;
+      const diffClass = getDiffClass(diff);
+
       return `
-        <div class="product-item">
+        <div class="product-item ${diffClass}">
           <strong>${escapeHtml(p.name)}</strong><br>
           Código: ${escapeHtml(p.code)}<br>
-          Stock teórico: ${p.stockTeorico || 0}<br>
-          Stock real: ${p.stockReal || 0}<br>
+          Stock teórico: ${teorico}<br>
+          Stock real: ${real}<br>
           Diferencia: ${diff}
         </div>
       `;
     })
     .join("");
 }
-
 function addProductFromForm() {
   const nameInput = document.getElementById("productName");
   const codeInput = document.getElementById("productCode");
@@ -593,18 +602,21 @@ function showScannedProduct(product, zone = null) {
   if (!box || !product) return;
 
   const currentZone = zone || getCurrentZone();
+  const teorico = product.stockTeorico || 0;
+  const real = product.stockReal || 0;
+  const diff = real - teorico;
 
   setText("resultName", product.name);
   setText("resultCode", product.code);
   setText("resultPasillo", currentZone.pasillo || "-");
   setText("resultFila", currentZone.fila || "-");
-  setText("resultTeorico", String(product.stockTeorico || 0));
-  setText("resultReal", String(product.stockReal || 0));
-  setText("resultDiff", String((product.stockReal || 0) - (product.stockTeorico || 0)));
+  setText("resultTeorico", String(teorico));
+  setText("resultReal", String(real));
+  setText("resultDiff", String(diff));
 
-  box.classList.remove("hidden");
+  box.classList.remove("hidden", "diff-ok", "diff-negative", "diff-positive");
+  box.classList.add(getDiffClass(diff));
 }
-
 function renderScanSummary() {
   const box = document.getElementById("scanSummary");
   if (!box) return;
@@ -618,20 +630,23 @@ function renderScanSummary() {
 
   box.innerHTML = products
     .map((p) => {
-      const diff = (p.stockReal || 0) - (p.stockTeorico || 0);
+      const teorico = p.stockTeorico || 0;
+      const real = p.stockReal || 0;
+      const diff = real - teorico;
+      const diffClass = getDiffClass(diff);
+
       return `
-        <div class="product-item">
+        <div class="product-item ${diffClass}">
           <strong>${escapeHtml(p.name)}</strong><br>
           Código: ${escapeHtml(p.code)}<br>
-          Teórico: ${p.stockTeorico || 0}<br>
-          Real: ${p.stockReal || 0}<br>
+          Teórico: ${teorico}<br>
+          Real: ${real}<br>
           Diferencia: ${diff}
         </div>
       `;
     })
     .join("");
 }
-
 function processScannedCode(rawCode) {
   const code = normalizeCode(rawCode);
   if (!code) return;
