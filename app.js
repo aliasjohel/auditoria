@@ -1231,25 +1231,20 @@ function registerServiceWorker() {
     try {
       const registration = await navigator.serviceWorker.register("./sw.js");
 
-      registration.addEventListener("updatefound", () => {
-        const newWorker = registration.installing;
-        if (!newWorker) return;
+     registration.addEventListener("updatefound", () => {
+  const newWorker = registration.installing;
+  if (!newWorker) return;
 
-        newWorker.addEventListener("statechange", () => {
-          if (
-            newWorker.state === "installed" &&
-            navigator.serviceWorker.controller
-          ) {
-            const confirmUpdate = confirm(
-              "Hay una nueva versión disponible. ¿Querés actualizar ahora?"
-            );
-
-            if (confirmUpdate) {
-              newWorker.postMessage({ type: "SKIP_WAITING" });
-            }
-          }
-        });
-      });
+  newWorker.addEventListener("statechange", () => {
+    if (
+      newWorker.state === "installed" &&
+      navigator.serviceWorker.controller
+    ) {
+      alert("Hay una nueva versión disponible. La aplicación se actualizará automáticamente.");
+      newWorker.postMessage({ type: "SKIP_WAITING" });
+    }
+  });
+});
 
       navigator.serviceWorker.addEventListener("controllerchange", () => {
         if (refreshing) return;
