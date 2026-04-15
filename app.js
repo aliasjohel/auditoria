@@ -2,7 +2,7 @@
 // CONFIG
 // =========================
 const USER = "Jesus96";
-const PASS = "1234";
+const PASS = "123";
 
 const STORAGE_KEYS = {
   logged: "logged",
