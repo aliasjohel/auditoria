@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Historial de Auditorías</title>
+  <title>Central de Control</title>
   <link rel="stylesheet" href="style.css">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0d6efd">
@@ -11,7 +11,7 @@
 <body>
 
   <div class="navbar">
-    <h2>Historial</h2>
+    <h2>Central de Control</h2>
     <div class="nav-actions">
       <button onclick="goTo('home.html')" class="back-btn">Volver</button>
       <button onclick="logout()" class="logout">Cerrar sesión</button>
@@ -20,24 +20,13 @@
 
   <div class="page">
     <div class="card page-card">
-      <h3>Auditorías guardadas</h3>
+      <h3>Importar conteos de equipos</h3>
 
-      <input
-        type="text"
-        id="historySearch"
-        placeholder="Buscar por cliente, sucursal o fecha..."
-      >
+      <input type="file" id="teamCountFileInput" accept=".json" multiple>
+      <button id="importTeamCountsBtn" type="button">Importar archivos</button>
 
-      <p id="historyMsg" class="info-msg"></p>
-
-      <div id="historyList" class="products-list"></div>
-    </div>
-
-    <div class="card page-card mt-20">
-      <h3>Detalle de auditoría</h3>
-      <div id="historyDetail" class="products-list">
-        <p class="placeholder-text">Seleccioná una auditoría para ver el detalle.</p>
-      </div>
+      <p id="centralMsg" class="info-msg"></p>
+      <div id="centralSummary" class="products-list"></div>
     </div>
   </div>
 

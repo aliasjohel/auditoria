@@ -11,7 +11,9 @@ const STORAGE_KEYS = {
   lastScan: "lastScan",
   currentZone: "currentZone",
   zoneProgress: "zoneProgress",
-  teamName: "teamName"
+  teamName: "teamName",
+  controls: "controls",
+  currentControl: "currentControl"
 };
 
 const protectedPages = [
@@ -59,6 +61,12 @@ function escapeHtml(text) {
     .replaceAll("'", "&#039;");
 }
 
+function getDiffClass(diff) {
+  if (diff === 0) return "diff-ok";
+  if (diff < 0) return "diff-negative";
+  return "diff-positive";
+}
+
 // =========================
 // STORAGE
 // =========================
@@ -77,12 +85,6 @@ function getProducts() {
 
 function saveProducts(products) {
   localStorage.setItem(STORAGE_KEYS.products, JSON.stringify(products));
-}
-
-function getDiffClass(diff) {
-  if (diff === 0) return "diff-ok";
-  if (diff < 0) return "diff-negative";
-  return "diff-positive";
 }
 
 function getLastScan() {
@@ -125,6 +127,181 @@ function saveTeamName(name) {
   localStorage.setItem(STORAGE_KEYS.teamName, name);
 }
 
+function getControls() {
+  const controls = safeParse(localStorage.getItem(STORAGE_KEYS.controls), []);
+  return Array.isArray(controls) ? controls : [];
+}
+
+function saveControls(controls) {
+  localStorage.setItem(STORAGE_KEYS.controls, JSON.stringify(controls));
+}
+
+function getCurrentControl() {
+  return safeParse(localStorage.getItem(STORAGE_KEYS.currentControl), null);
+}
+
+function saveCurrentControl(control) {
+  localStorage.setItem(STORAGE_KEYS.currentControl, JSON.stringify(control));
+}
+
+function clearCurrentControl() {
+  localStorage.removeItem(STORAGE_KEYS.currentControl);
+}
+
+// =========================
+// CONTROLES / AUDITORÍAS
+// =========================
+function createControl({ cliente, sucursal, fecha, observaciones }) {
+  return {
+    id: `control_${Date.now()}`,
+    cliente: normalizeText(cliente),
+    sucursal: normalizeText(sucursal),
+    fecha: normalizeText(fecha),
+    observaciones: normalizeText(observaciones),
+    createdAt: new Date().toISOString(),
+    closedAt: null,
+    status: "open"
+  };
+}
+
+function getControlDisplayName(control) {
+  if (!control) return "Sin auditoría activa";
+
+  const cliente = control.cliente || "Sin cliente";
+  const sucursal = control.sucursal || "Sin sucursal";
+  const fecha = control.fecha || "Sin fecha";
+
+  return `${cliente} - ${sucursal} - ${fecha}`;
+}
+
+function closeCurrentControl() {
+  const currentControl = getCurrentControl();
+  if (!currentControl) return null;
+
+  const products = getProducts();
+  const zoneProgress = getZoneProgress();
+  const controls = getControls();
+
+  const finalControl = {
+    ...currentControl,
+    status: "closed",
+    closedAt: new Date().toISOString(),
+    zoneProgress,
+    products: products.map((p) => ({
+      id: p.id,
+      name: p.name,
+      code: p.code,
+      stockTeorico: p.stockTeorico || 0,
+      stockReal: p.stockReal || 0,
+      difference: (p.stockReal || 0) - (p.stockTeorico || 0),
+      countsByZone: p.countsByZone || {}
+    }))
+  };
+
+  controls.unshift(finalControl);
+  saveControls(controls);
+  clearCurrentControl();
+
+  return finalControl;
+}
+
+function findControlById(controlId) {
+  return getControls().find((control) => control.id === controlId) || null;
+}
+
+function renderHistoryList(filterText = "") {
+  const list = document.getElementById("historyList");
+  const detail = document.getElementById("historyDetail");
+  if (!list) return;
+
+  const controls = getControls();
+  const term = normalizeText(filterText).toLowerCase();
+
+  const filtered = controls.filter((control) => {
+    const cliente = (control.cliente || "").toLowerCase();
+    const sucursal = (control.sucursal || "").toLowerCase();
+    const fecha = (control.fecha || "").toLowerCase();
+    return (
+      !term ||
+      cliente.includes(term) ||
+      sucursal.includes(term) ||
+      fecha.includes(term)
+    );
+  });
+
+  if (filtered.length === 0) {
+    list.innerHTML = "<p class='placeholder-text'>No hay auditorías guardadas todavía.</p>";
+    if (detail) {
+      detail.innerHTML = "<p class='placeholder-text'>Seleccioná una auditoría para ver el detalle.</p>";
+    }
+    return;
+  }
+
+  list.innerHTML = filtered
+    .map(
+      (control) => `
+        <div class="product-item">
+          <strong>${escapeHtml(control.cliente || "Sin cliente")}</strong><br>
+          Sucursal: ${escapeHtml(control.sucursal || "-")}<br>
+          Fecha: ${escapeHtml(control.fecha || "-")}<br>
+          Estado: ${escapeHtml(control.status || "-")}<br>
+          Productos: ${Array.isArray(control.products) ? control.products.length : 0}<br>
+          <div class="scan-actions">
+            <button type="button" onclick="showHistoryDetail('${control.id}')">Ver detalle</button>
+          </div>
+        </div>
+      `
+    )
+    .join("");
+}
+
+function showHistoryDetail(controlId) {
+  const detail = document.getElementById("historyDetail");
+  if (!detail) return;
+
+  const control = findControlById(controlId);
+
+  if (!control) {
+    detail.innerHTML = "<p class='placeholder-text'>No se encontró la auditoría seleccionada.</p>";
+    return;
+  }
+
+  const products = Array.isArray(control.products) ? control.products : [];
+
+  detail.innerHTML = `
+    <div class="product-item">
+      <strong>${escapeHtml(control.cliente || "Sin cliente")}</strong><br>
+      Sucursal: ${escapeHtml(control.sucursal || "-")}<br>
+      Fecha: ${escapeHtml(control.fecha || "-")}<br>
+      Observaciones: ${escapeHtml(control.observaciones || "-")}<br>
+      Estado: ${escapeHtml(control.status || "-")}<br>
+      Creada: ${escapeHtml(control.createdAt || "-")}<br>
+      Cerrada: ${escapeHtml(control.closedAt || "-")}
+    </div>
+
+    ${
+      products.length === 0
+        ? "<p class='placeholder-text'>Esta auditoría no tiene productos guardados.</p>"
+        : products
+            .map((p) => {
+              const diff = (p.stockReal || 0) - (p.stockTeorico || 0);
+              const diffClass = getDiffClass(diff);
+
+              return `
+                <div class="product-item ${diffClass}">
+                  <strong>${escapeHtml(p.name || "Sin nombre")}</strong><br>
+                  Código: ${escapeHtml(p.code || "-")}<br>
+                  Teórico: ${p.stockTeorico || 0}<br>
+                  Real: ${p.stockReal || 0}<br>
+                  Diferencia: ${diff}
+                </div>
+              `;
+            })
+            .join("")
+    }
+  `;
+}
+
 // =========================
 // NAVEGACIÓN / SEGURIDAD
 // =========================
@@ -151,7 +328,7 @@ function logout() {
 }
 
 // =========================
-// MENSAJES
+// MENSAJES / UI
 // =========================
 function setText(id, text) {
   const el = document.getElementById(id);
@@ -171,6 +348,21 @@ function setMessage(id, text, type = "info") {
 
 function setScanMessage(text, type = "info") {
   setMessage("scanMsg", text, type);
+}
+
+function renderCurrentControlInfo() {
+  const currentControl = getCurrentControl();
+
+  setText("currentControlInfo", getControlDisplayName(currentControl));
+
+  if (currentControl) {
+    setText(
+      "currentControlExtra",
+      `Cliente: ${currentControl.cliente} | Sucursal: ${currentControl.sucursal} | Fecha: ${currentControl.fecha}`
+    );
+  } else {
+    setText("currentControlExtra", "Todavía no hay una auditoría activa.");
+  }
 }
 
 // =========================
@@ -257,6 +449,7 @@ function renderProducts() {
     })
     .join("");
 }
+
 function addProductFromForm() {
   const nameInput = document.getElementById("productName");
   const codeInput = document.getElementById("productCode");
@@ -617,6 +810,7 @@ function showScannedProduct(product, zone = null) {
   box.classList.remove("hidden", "diff-ok", "diff-negative", "diff-positive");
   box.classList.add(getDiffClass(diff));
 }
+
 function renderScanSummary() {
   const box = document.getElementById("scanSummary");
   if (!box) return;
@@ -647,9 +841,19 @@ function renderScanSummary() {
     })
     .join("");
 }
+
 function processScannedCode(rawCode) {
   const code = normalizeCode(rawCode);
   if (!code) return;
+
+  const currentControl = getCurrentControl();
+
+  if (!currentControl) {
+    setScanMessage("Primero creá una auditoría en Nuevo Control.", "error");
+    playBeep("error");
+    vibrateDevice([120, 80, 120]);
+    return;
+  }
 
   const zone = getCurrentZone();
 
@@ -933,7 +1137,10 @@ function clearLocalCounts() {
   renderZoneProgress();
 
   const scanResult = document.getElementById("scanResult");
-  if (scanResult) scanResult.classList.add("hidden");
+  if (scanResult) {
+    scanResult.classList.add("hidden");
+    scanResult.classList.remove("diff-ok", "diff-negative", "diff-positive");
+  }
 }
 
 function importTeamCountsFiles(files) {
@@ -1012,10 +1219,7 @@ function renderCentralSummary(teamPayloads) {
   box.innerHTML = consolidated
     .map((item) => {
       const diff = item.stockReal - item.stockTeorico;
-      let diffClass = "diff-ok";
-
-      if (diff < 0) diffClass = "diff-negative";
-      if (diff > 0) diffClass = "diff-positive";
+      const diffClass = getDiffClass(diff);
 
       return `
         <div class="product-item ${diffClass}">
@@ -1082,6 +1286,72 @@ function setupLoginPage() {
   });
 }
 
+function setupNewControlPage() {
+  const saveControlBtn = document.getElementById("saveControlBtn");
+  if (!saveControlBtn) return;
+
+  const clienteInput = document.getElementById("controlCliente");
+  const sucursalInput = document.getElementById("controlSucursal");
+  const fechaInput = document.getElementById("controlFecha");
+  const obsInput = document.getElementById("controlObs");
+
+  const currentControl = getCurrentControl();
+  if (currentControl) {
+    clienteInput.value = currentControl.cliente || "";
+    sucursalInput.value = currentControl.sucursal || "";
+    fechaInput.value = currentControl.fecha || "";
+    obsInput.value = currentControl.observaciones || "";
+  }
+
+  saveControlBtn.addEventListener("click", () => {
+    const cliente = normalizeText(clienteInput.value);
+    const sucursal = normalizeText(sucursalInput.value);
+    const fecha = normalizeText(fechaInput.value);
+    const observaciones = normalizeText(obsInput.value);
+
+    if (!cliente || !sucursal || !fecha) {
+      setMessage("controlMsg", "Completá cliente, sucursal y fecha.", "error");
+      return;
+    }
+
+    const control = createControl({
+      cliente,
+      sucursal,
+      fecha,
+      observaciones
+    });
+
+    saveCurrentControl(control);
+    setMessage("controlMsg", "Auditoría guardada y activada correctamente.", "success");
+  });
+}
+
+function setupHistoryPage() {
+  const historyList = document.getElementById("historyList");
+  const searchInput = document.getElementById("historySearch");
+
+  if (!historyList) return;
+
+  renderHistoryList();
+
+  if (searchInput) {
+    searchInput.addEventListener("input", () => {
+      renderHistoryList(searchInput.value);
+    });
+  }
+}
+
+function setupCentralPage() {
+  const importTeamCountsBtn = document.getElementById("importTeamCountsBtn");
+  const teamCountFileInput = document.getElementById("teamCountFileInput");
+
+  if (!importTeamCountsBtn || !teamCountFileInput) return;
+
+  importTeamCountsBtn.addEventListener("click", () => {
+    importTeamCountsFiles(teamCountFileInput.files || []);
+  });
+}
+
 // =========================
 // SETUP SCAN PAGE
 // =========================
@@ -1089,6 +1359,7 @@ function setupScanPage() {
   const input = document.getElementById("scanCode");
   if (!input) return;
 
+  const closeControlBtn = document.getElementById("closeControlBtn");
   const minusBtn = document.getElementById("minusOneBtn");
   const undoBtn = document.getElementById("undoScanBtn");
   const startCameraBtn = document.getElementById("startCameraBtn");
@@ -1106,6 +1377,7 @@ function setupScanPage() {
   renderCurrentZone();
   renderZoneProgress();
   renderScanSummary();
+  renderCurrentControlInfo();
   setupScanInputAuto();
   input.focus();
 
@@ -1161,6 +1433,7 @@ function setupScanPage() {
         setScanMessage(`Se restó 1 a ${updated.name}.`, "success");
         showScannedProduct(updated, zone);
         renderScanSummary();
+        renderZoneProgress();
         playBeep("ok");
         vibrateDevice(60);
       }
@@ -1224,6 +1497,24 @@ function setupScanPage() {
     });
   }
 
+  if (closeControlBtn) {
+    closeControlBtn.addEventListener("click", () => {
+      const currentControl = getCurrentControl();
+
+      if (!currentControl) {
+        setScanMessage("No hay auditoría activa para cerrar.", "error");
+        return;
+      }
+
+      const savedControl = closeCurrentControl();
+
+      if (savedControl) {
+        setScanMessage("Auditoría cerrada y guardada en historial.", "success");
+        renderCurrentControlInfo();
+      }
+    });
+  }
+
   window.addEventListener("beforeunload", () => {
     if (cameraRunning) {
       stopCameraScanner();
@@ -1246,20 +1537,20 @@ function registerServiceWorker() {
     try {
       const registration = await navigator.serviceWorker.register("./sw.js");
 
-     registration.addEventListener("updatefound", () => {
-  const newWorker = registration.installing;
-  if (!newWorker) return;
+      registration.addEventListener("updatefound", () => {
+        const newWorker = registration.installing;
+        if (!newWorker) return;
 
-  newWorker.addEventListener("statechange", () => {
-    if (
-      newWorker.state === "installed" &&
-      navigator.serviceWorker.controller
-    ) {
-      alert("Hay una nueva versión disponible. La aplicación se actualizará automáticamente.");
-      newWorker.postMessage({ type: "SKIP_WAITING" });
-    }
-  });
-});
+        newWorker.addEventListener("statechange", () => {
+          if (
+            newWorker.state === "installed" &&
+            navigator.serviceWorker.controller
+          ) {
+            alert("Hay una nueva versión disponible. La aplicación se actualizará automáticamente.");
+            newWorker.postMessage({ type: "SKIP_WAITING" });
+          }
+        });
+      });
 
       navigator.serviceWorker.addEventListener("controllerchange", () => {
         if (refreshing) return;
@@ -1278,7 +1569,10 @@ function registerServiceWorker() {
 document.addEventListener("DOMContentLoaded", () => {
   protectPages();
   setupLoginPage();
+  setupNewControlPage();
   setupProductsPage();
+  setupHistoryPage();
+  setupCentralPage();
   setupScanPage();
   registerServiceWorker();
 });
