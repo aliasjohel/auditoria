@@ -408,25 +408,36 @@ function playBeep(type = "ok") {
   try {
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
     const ctx = new AudioCtx();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
 
-    osc.connect(gain);
-    gain.connect(ctx.destination);
+    function beep(frequency, duration, volume) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.frequency.value = frequency;
+      gain.gain.value = volume;
+
+      osc.start();
+      osc.stop(ctx.currentTime + duration);
+    }
 
     if (type === "ok") {
-      osc.frequency.value = 880;
-      gain.gain.value = 0.05;
-      osc.start();
-      osc.stop(ctx.currentTime + 0.08);
+      // 🔊 doble beep fuerte
+      beep(900, 0.12, 0.25);
+
+      setTimeout(() => {
+        beep(900, 0.12, 0.25);
+      }, 140);
+
     } else {
-      osc.frequency.value = 220;
-      gain.gain.value = 0.06;
-      osc.start();
-      osc.stop(ctx.currentTime + 0.18);
+      // 🔻 sonido error más grave
+      beep(220, 0.2, 0.3);
     }
+
   } catch {
-    // evitar romper si el navegador bloquea audio
+    // evitar errores si el navegador bloquea audio
   }
 }
 
@@ -500,30 +511,26 @@ function renderProducts(filterText = "") {
     })
     .join("");
 }
-function editProduct(id) {
+function editProduct(code) {
   const products = getProducts();
-  const product = products.find((p) => String(p.id) === String(id));
+  const product = products.find(p => p.code === code);
+
   if (!product) return;
 
-  const nameInput = document.getElementById("productName");
-  const codeInput = document.getElementById("productCode");
-  const stockInput = document.getElementById("productStock");
-  const saveBtn = document.getElementById("saveProductBtn");
+  const newName = prompt("Editar nombre:", product.name);
+  if (newName === null) return;
 
-  if (!nameInput || !codeInput || !stockInput) return;
+  const newStock = prompt("Editar stock teórico:", product.stockTeorico);
+  if (newStock === null) return;
 
-  nameInput.value = product.name || "";
-  codeInput.value = product.code || "";
-  stockInput.value = product.stockTeorico || 0;
+  product.name = normalizeText(newName);
+  product.stockTeorico = toPositiveInt(newStock);
 
-  editingProductId = product.id;
+  saveProducts(products);
+  renderProducts();
 
-  if (saveBtn) saveBtn.textContent = "Guardar cambios";
-
-  setMessage("productMsg", "Editando producto. Modificá los datos y guardá cambios.", "success");
-  nameInput.focus();
+  alert("Producto actualizado correctamente");
 }
-
 function deleteProduct(code) {
   const confirmDelete = confirm("¿Seguro que querés eliminar este producto?");
   if (!confirmDelete) return;
