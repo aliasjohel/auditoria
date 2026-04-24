@@ -85,6 +85,24 @@
     </div>
 
     <div class="card page-card mt-20">
+
+      <div class="card page-card mt-20">
+  <h3>Ajuste manual por cantidad</h3>
+
+  <input type="text" id="adjustSearch" placeholder="Buscar producto por nombre o código">
+
+  <div id="adjustResults" class="products-list"></div>
+
+  <input type="number" id="adjustQty" placeholder="Cantidad a ajustar" min="1">
+
+  <div class="scan-actions">
+    <button id="addQtyBtn" type="button">Sumar cantidad</button>
+    <button id="subtractQtyBtn" type="button" class="danger-btn">Restar cantidad</button>
+  </div>
+
+  <p id="adjustMsg" class="info-msg"></p>
+</div>
+
       <h3>Resumen de conteo</h3>
       <div id="scanSummary" class="products-list"></div>
     </div>

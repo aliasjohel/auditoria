@@ -21,8 +21,11 @@ const protectedPages = [
   "new-control.html",
   "products.html",
   "history.html",
+  "central.html",
   "scan.html"
 ];
+
+let editingProductId = null;
 
 // =========================
 // HELPERS
@@ -80,7 +83,27 @@ function setLogged(value) {
 
 function getProducts() {
   const products = safeParse(localStorage.getItem(STORAGE_KEYS.products), []);
-  return Array.isArray(products) ? products : [];
+  if (!Array.isArray(products)) return [];
+
+  let changed = false;
+
+  const normalizedProducts = products.map((p) => {
+    if (!p.id) {
+      changed = true;
+      return {
+        ...p,
+        id: Date.now() + Math.floor(Math.random() * 100000)
+      };
+    }
+
+    return p;
+  });
+
+  if (changed) {
+    saveProducts(normalizedProducts);
+  }
+
+  return normalizedProducts;
 }
 
 function saveProducts(products) {
@@ -146,6 +169,18 @@ function saveCurrentControl(control) {
 
 function clearCurrentControl() {
   localStorage.removeItem(STORAGE_KEYS.currentControl);
+}
+
+function resetAuditData() {
+  const products = getProducts().map((p) => ({
+    ...p,
+    stockReal: 0,
+    countsByZone: {}
+  }));
+
+  saveProducts(products);
+  saveZoneProgress([]);
+  clearLastScan();
 }
 
 // =========================
@@ -221,6 +256,7 @@ function renderHistoryList(filterText = "") {
     const cliente = (control.cliente || "").toLowerCase();
     const sucursal = (control.sucursal || "").toLowerCase();
     const fecha = (control.fecha || "").toLowerCase();
+
     return (
       !term ||
       cliente.includes(term) ||
@@ -405,7 +441,7 @@ function vibrateDevice(pattern = 100) {
 // =========================
 function createProduct({ name, code, stockTeorico }) {
   return {
-    id: Date.now() + Math.floor(Math.random() * 1000),
+    id: Date.now() + Math.floor(Math.random() * 100000),
     name: normalizeText(name),
     code: normalizeCode(code),
     stockTeorico: toPositiveInt(stockTeorico),
@@ -419,18 +455,26 @@ function findProductByCode(code) {
   return getProducts().find((p) => normalizeCode(p.code) === normalized) || null;
 }
 
-function renderProducts() {
+function renderProducts(filterText = "") {
   const list = document.getElementById("productsList");
   if (!list) return;
 
   const products = getProducts();
+  const term = normalizeText(filterText).toLowerCase();
 
-  if (products.length === 0) {
-    list.innerHTML = "<p class='placeholder-text'>Todavía no hay productos cargados.</p>";
+  const filteredProducts = products.filter((p) => {
+    const name = String(p.name || "").toLowerCase();
+    const code = String(p.code || "").toLowerCase();
+
+    return !term || name.includes(term) || code.includes(term);
+  });
+
+  if (filteredProducts.length === 0) {
+    list.innerHTML = "<p class='placeholder-text'>No se encontraron productos.</p>";
     return;
   }
 
-  list.innerHTML = products
+  list.innerHTML = filteredProducts
     .map((p) => {
       const teorico = p.stockTeorico || 0;
       const real = p.stockReal || 0;
@@ -443,11 +487,68 @@ function renderProducts() {
           Código: ${escapeHtml(p.code)}<br>
           Stock teórico: ${teorico}<br>
           Stock real: ${real}<br>
-          Diferencia: ${diff}
+          Diferencia: ${diff}<br>
+
+          <div class="scan-actions">
+            <button onclick="editProduct('${p.code}')">Editar</button>
+<button onclick="deleteProduct('${p.code}')" style="margin-left:8px; background:#dc3545; color:white;">
+  Eliminar
+</button>
+          </div>
         </div>
       `;
     })
     .join("");
+}
+function editProduct(id) {
+  const products = getProducts();
+  const product = products.find((p) => String(p.id) === String(id));
+  if (!product) return;
+
+  const nameInput = document.getElementById("productName");
+  const codeInput = document.getElementById("productCode");
+  const stockInput = document.getElementById("productStock");
+  const saveBtn = document.getElementById("saveProductBtn");
+
+  if (!nameInput || !codeInput || !stockInput) return;
+
+  nameInput.value = product.name || "";
+  codeInput.value = product.code || "";
+  stockInput.value = product.stockTeorico || 0;
+
+  editingProductId = product.id;
+
+  if (saveBtn) saveBtn.textContent = "Guardar cambios";
+
+  setMessage("productMsg", "Editando producto. Modificá los datos y guardá cambios.", "success");
+  nameInput.focus();
+}
+
+function deleteProduct(code) {
+  const confirmDelete = confirm("¿Seguro que querés eliminar este producto?");
+  if (!confirmDelete) return;
+
+  let products = getProducts();
+
+  products = products.filter(p => p.code !== code);
+
+  localStorage.setItem("products", JSON.stringify(products));
+
+  renderProducts();
+}
+
+function resetProductForm() {
+  const nameInput = document.getElementById("productName");
+  const codeInput = document.getElementById("productCode");
+  const stockInput = document.getElementById("productStock");
+  const saveBtn = document.getElementById("saveProductBtn");
+
+  if (nameInput) nameInput.value = "";
+  if (codeInput) codeInput.value = "";
+  if (stockInput) stockInput.value = "";
+  if (saveBtn) saveBtn.textContent = "Guardar producto";
+
+  editingProductId = null;
 }
 
 function addProductFromForm() {
@@ -467,21 +568,46 @@ function addProductFromForm() {
   }
 
   const products = getProducts();
-  const exists = products.some((p) => normalizeCode(p.code) === code);
 
-  if (exists) {
-    setMessage("productMsg", "Ya existe un producto con ese código.", "error");
-    return;
+  if (editingProductId !== null) {
+    const index = products.findIndex((p) => String(p.id) === String(editingProductId));
+
+    if (index === -1) {
+      setMessage("productMsg", "No se encontró el producto para editar.", "error");
+      editingProductId = null;
+      return;
+    }
+
+    const duplicatedCode = products.some(
+      (p) => normalizeCode(p.code) === code && String(p.id) !== String(editingProductId)
+    );
+
+    if (duplicatedCode) {
+      setMessage("productMsg", "Ya existe otro producto con ese código.", "error");
+      return;
+    }
+
+    products[index].name = name;
+    products[index].code = code;
+    products[index].stockTeorico = stock;
+
+    saveProducts(products);
+    setMessage("productMsg", "Producto actualizado correctamente.", "success");
+  } else {
+    const exists = products.some((p) => normalizeCode(p.code) === code);
+
+    if (exists) {
+      setMessage("productMsg", "Ya existe un producto con ese código. Usá Editar para modificarlo.", "error");
+      return;
+    }
+
+    products.push(createProduct({ name, code, stockTeorico: stock }));
+    saveProducts(products);
+
+    setMessage("productMsg", "Producto guardado correctamente.", "success");
   }
 
-  products.push(createProduct({ name, code, stockTeorico: stock }));
-  saveProducts(products);
-
-  nameInput.value = "";
-  codeInput.value = "";
-  stockInput.value = "";
-
-  setMessage("productMsg", "Producto guardado correctamente.", "success");
+  resetProductForm();
   renderProducts();
   renderScanSummary();
 }
@@ -493,14 +619,14 @@ function importProductsFromCsvText(csvText) {
     .filter(Boolean);
 
   if (lines.length === 0) {
-    return { added: 0, skipped: 0, error: "El archivo CSV está vacío." };
+    return { added: 0, updated: 0, skipped: 0, error: "El archivo CSV está vacío." };
   }
 
   const products = getProducts();
-  const existingCodes = new Set(products.map((p) => normalizeCode(p.code)));
 
   let startIndex = 0;
   const firstLine = lines[0].toLowerCase();
+
   if (
     firstLine.includes("codigo") ||
     firstLine.includes("nombre") ||
@@ -510,6 +636,7 @@ function importProductsFromCsvText(csvText) {
   }
 
   let added = 0;
+  let updated = 0;
   let skipped = 0;
 
   for (let i = startIndex; i < lines.length; i += 1) {
@@ -530,18 +657,20 @@ function importProductsFromCsvText(csvText) {
       continue;
     }
 
-    if (existingCodes.has(code)) {
-      skipped += 1;
-      continue;
-    }
+    const existing = products.find((p) => normalizeCode(p.code) === code);
 
-    products.push(createProduct({ name, code, stockTeorico }));
-    existingCodes.add(code);
-    added += 1;
+    if (existing) {
+      existing.name = name;
+      existing.stockTeorico = stockTeorico;
+      updated += 1;
+    } else {
+      products.push(createProduct({ name, code, stockTeorico }));
+      added += 1;
+    }
   }
 
   saveProducts(products);
-  return { added, skipped, error: null };
+  return { added, updated, skipped, error: null };
 }
 
 function setupProductsPage() {
@@ -550,10 +679,17 @@ function setupProductsPage() {
   const csvInput = document.getElementById("csvFileInput");
   const scanProductCodeBtn = document.getElementById("scanProductCodeBtn");
   const stopProductCameraBtn = document.getElementById("stopProductCameraBtn");
+  const productSearch = document.getElementById("productSearch");
 
   if (!saveBtn && !importBtn && !scanProductCodeBtn) return;
 
   renderProducts();
+
+  if (productSearch) {
+    productSearch.addEventListener("input", () => {
+      renderProducts(productSearch.value);
+    });
+  }
 
   if (saveBtn) {
     saveBtn.addEventListener("click", addProductFromForm);
@@ -569,8 +705,10 @@ function setupProductsPage() {
       }
 
       const reader = new FileReader();
+
       reader.onload = () => {
         const result = importProductsFromCsvText(reader.result || "");
+
         if (result.error) {
           setMessage("csvMsg", result.error, "error");
           return;
@@ -578,12 +716,12 @@ function setupProductsPage() {
 
         setMessage(
           "csvMsg",
-          `Importación terminada. Agregados: ${result.added}. Omitidos: ${result.skipped}.`,
+          `Importación terminada. Nuevos: ${result.added}, Actualizados: ${result.updated}, Omitidos: ${result.skipped}.`,
           "success"
         );
 
         csvInput.value = "";
-        renderProducts();
+        renderProducts(productSearch?.value || "");
         renderScanSummary();
       };
 
@@ -592,6 +730,18 @@ function setupProductsPage() {
       };
 
       reader.readAsText(file);
+    });
+  }
+
+  if (scanProductCodeBtn) {
+    scanProductCodeBtn.addEventListener("click", async () => {
+      await startProductCameraScanner();
+    });
+  }
+
+  if (stopProductCameraBtn) {
+    stopProductCameraBtn.addEventListener("click", async () => {
+      await stopProductCameraScanner();
     });
   }
 
@@ -760,6 +910,113 @@ function renderZoneProgress() {
 // =========================
 // ESCANEO
 // =========================
+let selectedAdjustCode = null;
+
+function renderAdjustResults(search = "") {
+  const box = document.getElementById("adjustResults");
+  if (!box) return;
+
+  const term = normalizeText(search).toLowerCase();
+
+  if (!term) {
+    box.innerHTML = "<p class='placeholder-text'>Buscá un producto para ajustar.</p>";
+    return;
+  }
+
+  const products = getProducts().filter((p) => {
+    const name = String(p.name || "").toLowerCase();
+    const code = String(p.code || "").toLowerCase();
+
+    return name.includes(term) || code.includes(term);
+  });
+
+  if (products.length === 0) {
+    box.innerHTML = "<p class='placeholder-text'>No se encontraron productos.</p>";
+    return;
+  }
+
+  box.innerHTML = products
+    .map((p) => {
+      const diff = (p.stockReal || 0) - (p.stockTeorico || 0);
+      const diffClass = getDiffClass(diff);
+
+      return `
+        <div class="product-item ${diffClass}">
+          <strong>${escapeHtml(p.name)}</strong><br>
+          Código: ${escapeHtml(p.code)}<br>
+          Teórico: ${p.stockTeorico || 0}<br>
+          Real: ${p.stockReal || 0}<br>
+          Diferencia: ${diff}<br>
+
+          <div class="scan-actions">
+            <button type="button" onclick="selectAdjustProduct('${p.code}')">
+              Seleccionar
+            </button>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+function selectAdjustProduct(code) {
+  const product = findProductByCode(code);
+  if (!product) return;
+
+  selectedAdjustCode = product.code;
+
+  setMessage(
+    "adjustMsg",
+    `Producto seleccionado: ${product.name} - Código: ${product.code}`,
+    "success"
+  );
+}
+
+function adjustSelectedProduct(amount) {
+  if (!selectedAdjustCode) {
+    setMessage("adjustMsg", "Primero seleccioná un producto.", "error");
+    return;
+  }
+
+  const qtyInput = document.getElementById("adjustQty");
+  const qty = toPositiveInt(qtyInput?.value);
+
+  if (qty <= 0) {
+    setMessage("adjustMsg", "Ingresá una cantidad mayor a 0.", "error");
+    return;
+  }
+
+  const realAmount = amount > 0 ? qty : -qty;
+  const zone = getCurrentZone();
+  const validZone = zone?.pasillo && zone?.fila ? zone : null;
+
+  const updated = updateProductReal(selectedAdjustCode, realAmount, validZone);
+
+  if (!updated) {
+    setMessage("adjustMsg", "No se pudo ajustar el producto.", "error");
+    return;
+  }
+
+  saveLastScan({
+    code: selectedAdjustCode,
+    amount: realAmount,
+    zone: validZone
+  });
+
+  setMessage(
+    "adjustMsg",
+    `Ajuste aplicado a ${updated.name}. Cantidad: ${realAmount}`,
+    "success"
+  );
+
+  showScannedProduct(updated, validZone);
+  renderScanSummary();
+  renderZoneProgress();
+  renderAdjustResults(document.getElementById("adjustSearch")?.value || "");
+
+  if (qtyInput) qtyInput.value = "";
+}
+
 function updateProductReal(code, amount, zone = null) {
   const products = getProducts();
   const normalizedCode = normalizeCode(code);
@@ -931,9 +1188,7 @@ async function startCameraScanner() {
         lastCameraScanTime = now;
         processScannedCode(decodedText);
       },
-      () => {
-        // ignorar errores de lectura continua
-      }
+      () => {}
     );
 
     cameraRunning = true;
@@ -1019,9 +1274,7 @@ async function startProductCameraScanner() {
         await stopProductCameraScanner();
         codeInput.focus();
       },
-      () => {
-        // ignorar errores de lectura continua
-      }
+      () => {}
     );
 
     productCameraRunning = true;
@@ -1076,7 +1329,7 @@ function setupScanInputAuto() {
 }
 
 // =========================
-// EQUIPO / EXPORTACIÓN JSON
+// CENTRAL / EXPORTACIÓN JSON
 // =========================
 function exportTeamCounts() {
   const teamNameInput = document.getElementById("teamName");
@@ -1236,7 +1489,7 @@ function renderCentralSummary(teamPayloads) {
 }
 
 // =========================
-// LOGIN
+// SETUPS
 // =========================
 function setupLoginPage() {
   const userInput = document.getElementById("user");
@@ -1314,6 +1567,8 @@ function setupNewControlPage() {
       return;
     }
 
+    resetAuditData();
+
     const control = createControl({
       cliente,
       sucursal,
@@ -1352,9 +1607,6 @@ function setupCentralPage() {
   });
 }
 
-// =========================
-// SETUP SCAN PAGE
-// =========================
 function setupScanPage() {
   const input = document.getElementById("scanCode");
   if (!input) return;
@@ -1370,19 +1622,42 @@ function setupScanPage() {
   const saveTeamBtn = document.getElementById("saveTeamBtn");
   const exportTeamCountsBtn = document.getElementById("exportTeamCountsBtn");
   const clearLocalCountsBtn = document.getElementById("clearLocalCountsBtn");
-  const importTeamCountsBtn = document.getElementById("importTeamCountsBtn");
-  const teamCountFileInput = document.getElementById("teamCountFileInput");
   const teamNameInput = document.getElementById("teamName");
+
+  const adjustSearch = document.getElementById("adjustSearch");
+  const addQtyBtn = document.getElementById("addQtyBtn");
+  const subtractQtyBtn = document.getElementById("subtractQtyBtn");
 
   renderCurrentZone();
   renderZoneProgress();
   renderScanSummary();
   renderCurrentControlInfo();
+  renderAdjustResults();
   setupScanInputAuto();
   input.focus();
 
   if (teamNameInput) {
     teamNameInput.value = getTeamName();
+  }
+
+  if (adjustSearch) {
+    adjustSearch.addEventListener("input", () => {
+      renderAdjustResults(adjustSearch.value);
+    });
+  }
+
+  if (addQtyBtn) {
+    addQtyBtn.addEventListener("click", () => {
+      adjustSelectedProduct(1);
+      input.focus();
+    });
+  }
+
+  if (subtractQtyBtn) {
+    subtractQtyBtn.addEventListener("click", () => {
+      adjustSelectedProduct(-1);
+      input.focus();
+    });
   }
 
   if (saveZoneBtn) {
@@ -1395,6 +1670,7 @@ function setupScanPage() {
 
   if (nextFilaBtn) {
     nextFilaBtn.addEventListener("click", () => {
+      nextFila();
       input.focus();
     });
   }
@@ -1473,6 +1749,7 @@ function setupScanPage() {
   if (saveTeamBtn && teamNameInput) {
     saveTeamBtn.addEventListener("click", () => {
       const name = normalizeText(teamNameInput.value);
+
       if (!name) {
         setMessage("teamMsg", "Escribí un nombre de equipo.", "error");
         return;
@@ -1489,12 +1766,6 @@ function setupScanPage() {
 
   if (clearLocalCountsBtn) {
     clearLocalCountsBtn.addEventListener("click", clearLocalCounts);
-  }
-
-  if (importTeamCountsBtn && teamCountFileInput) {
-    importTeamCountsBtn.addEventListener("click", () => {
-      importTeamCountsFiles(teamCountFileInput.files || []);
-    });
   }
 
   if (closeControlBtn) {
@@ -1514,17 +1785,7 @@ function setupScanPage() {
       }
     });
   }
-
-  window.addEventListener("beforeunload", () => {
-    if (cameraRunning) {
-      stopCameraScanner();
-    }
-    if (productCameraRunning) {
-      stopProductCameraScanner();
-    }
-  });
 }
-
 // =========================
 // SERVICE WORKER / ACTUALIZACIONES
 // =========================
