@@ -1395,18 +1395,31 @@ async function startCameraScanner() {
 
         lastCameraScan = decodedText;
         lastCameraScanTime = now;
+        blinkCameraTorch();
+        processScannedCode(decodedText);
         processScannedCode(decodedText);
       },
       () => {}
     );
 
-    // 🔦 intentar encender flash
-try {
-  await html5QrCodeInstance.applyVideoConstraints({
-    advanced: [{ torch: true }]
-  });
-} catch (err) {
-  console.log("Flash no soportado en este dispositivo");
+  async function setCameraTorch(value) {
+  if (!html5QrCodeInstance) return;
+
+  try {
+    await html5QrCodeInstance.applyVideoConstraints({
+      advanced: [{ torch: value }]
+    });
+  } catch (err) {
+    console.log("Flash no soportado en este dispositivo");
+  }
+}
+
+async function blinkCameraTorch() {
+  await setCameraTorch(true);
+
+  setTimeout(() => {
+    setCameraTorch(false);
+  }, 180);
 }
 
     cameraRunning = true;
