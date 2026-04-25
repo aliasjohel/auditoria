@@ -313,6 +313,24 @@ function showHistoryDetail(controlId) {
       Estado: ${escapeHtml(control.status || "-")}<br>
       Creada: ${escapeHtml(control.createdAt || "-")}<br>
       Cerrada: ${escapeHtml(control.closedAt || "-")}
+
+      <div class="scan-actions">
+        <button type="button" onclick="exportControlCsv('${control.id}')">
+          Exportar CSV
+        </button>
+
+        <button type="button" class="secondary-btn" onclick="exportControlPdf('${control.id}')">
+          Exportar PDF
+        </button>
+
+        <button 
+  type="button" 
+  class="danger-btn"
+  onclick="deleteControl('${control.id}')"
+>
+  Eliminar auditoría
+</button>
+      </div>
     </div>
 
     ${
@@ -336,6 +354,190 @@ function showHistoryDetail(controlId) {
             .join("")
     }
   `;
+}
+
+function sanitizeFileName(text) {
+  return String(text || "auditoria")
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/\s+/g, "_");
+}
+
+function downloadTextFile(content, fileName, type = "text/plain") {
+  const blob = new Blob([content], { type });
+  const link = document.createElement("a");
+
+  link.href = URL.createObjectURL(blob);
+  link.download = fileName;
+  link.click();
+
+  URL.revokeObjectURL(link.href);
+}
+
+function exportControlCsv(controlId) {
+  const control = findControlById(controlId);
+
+  if (!control) {
+    alert("No se encontró la auditoría.");
+    return;
+  }
+
+  const products = Array.isArray(control.products) ? control.products : [];
+
+  const rows = [
+    ["Cliente", control.cliente || ""],
+    ["Sucursal", control.sucursal || ""],
+    ["Fecha", control.fecha || ""],
+    ["Observaciones", control.observaciones || ""],
+    [],
+    ["Código", "Producto", "Stock teórico", "Stock real", "Diferencia"]
+  ];
+
+  products.forEach((p) => {
+    rows.push([
+      p.code || "",
+      p.name || "",
+      p.stockTeorico || 0,
+      p.stockReal || 0,
+      (p.stockReal || 0) - (p.stockTeorico || 0)
+    ]);
+  });
+
+  const csv = rows
+    .map((row) =>
+      row
+        .map((cell) => `"${String(cell).replaceAll('"', '""')}"`)
+        .join(";")
+    )
+    .join("\n");
+
+  const fileName = `auditoria_${sanitizeFileName(control.cliente)}_${sanitizeFileName(control.fecha)}.csv`;
+
+  downloadTextFile("\uFEFF" + csv, fileName, "text/csv;charset=utf-8");
+}
+
+function exportControlPdf(controlId) {
+  const control = findControlById(controlId);
+
+  if (!control) {
+    alert("No se encontró la auditoría.");
+    return;
+  }
+
+  const products = Array.isArray(control.products) ? control.products : [];
+
+  const rows = products
+    .map((p) => {
+      const diff = (p.stockReal || 0) - (p.stockTeorico || 0);
+
+      return `
+        <tr>
+          <td>${escapeHtml(p.code || "")}</td>
+          <td>${escapeHtml(p.name || "")}</td>
+          <td>${p.stockTeorico || 0}</td>
+          <td>${p.stockReal || 0}</td>
+          <td>${diff}</td>
+        </tr>
+      `;
+    })
+    .join("");
+
+  const win = window.open("", "_blank");
+
+  win.document.write(`
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+      <meta charset="UTF-8">
+      <title>Auditoría ${escapeHtml(control.cliente || "")}</title>
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          padding: 24px;
+          color: #111;
+        }
+
+        h1 {
+          margin-bottom: 5px;
+        }
+
+        .info {
+          margin-bottom: 20px;
+          line-height: 1.5;
+        }
+
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-top: 20px;
+        }
+
+        th, td {
+          border: 1px solid #ccc;
+          padding: 8px;
+          font-size: 13px;
+          text-align: left;
+        }
+
+        th {
+          background: #f0f0f0;
+        }
+      </style>
+    </head>
+    <body>
+      <h1>Auditoría de Stock</h1>
+
+      <div class="info">
+        <strong>Cliente:</strong> ${escapeHtml(control.cliente || "-")}<br>
+        <strong>Sucursal:</strong> ${escapeHtml(control.sucursal || "-")}<br>
+        <strong>Fecha:</strong> ${escapeHtml(control.fecha || "-")}<br>
+        <strong>Observaciones:</strong> ${escapeHtml(control.observaciones || "-")}
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Código</th>
+            <th>Producto</th>
+            <th>Stock teórico</th>
+            <th>Stock real</th>
+            <th>Diferencia</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows || "<tr><td colspan='5'>Sin productos registrados.</td></tr>"}
+        </tbody>
+      </table>
+
+      <script>
+        window.print();
+      </script>
+    </body>
+    </html>
+  `);
+
+  win.document.close();
+}
+
+function deleteControl(controlId) {
+  const controls = getControls();
+
+  const confirmDelete = confirm("¿Seguro que querés eliminar esta auditoría?");
+  if (!confirmDelete) return;
+
+  const updated = controls.filter(c => c.id !== controlId);
+
+  saveControls(updated);
+
+  // limpiar detalle
+  const detail = document.getElementById("historyDetail");
+  if (detail) {
+    detail.innerHTML = "<p class='placeholder-text'>Auditoría eliminada.</p>";
+  }
+
+  renderHistoryList();
+
+  alert("Auditoría eliminada correctamente");
 }
 
 // =========================
@@ -1197,6 +1399,15 @@ async function startCameraScanner() {
       },
       () => {}
     );
+
+    // 🔦 intentar encender flash
+try {
+  await html5QrCodeInstance.applyVideoConstraints({
+    advanced: [{ torch: true }]
+  });
+} catch (err) {
+  console.log("Flash no soportado en este dispositivo");
+}
 
     cameraRunning = true;
     setScanMessage("Cámara activa. Apuntá al código.", "success");

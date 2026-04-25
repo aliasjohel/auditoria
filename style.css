@@ -150,6 +150,20 @@ select {
   background: #bb2d3b !important;
 }
 
+.danger-btn:hover {
+  background-color: #bb2d3b;
+  color: white;
+}
+
+button {
+  transition: all 0.1s ease;
+}
+
+button:active {
+  transform: scale(0.96);
+  opacity: 0.9;
+}
+
 /* ========================= */
 /* NAVBAR */
 /* ========================= */
