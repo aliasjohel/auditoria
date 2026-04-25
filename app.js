@@ -1360,10 +1360,33 @@ function processScannedCode(rawCode) {
 // =========================
 // CÁMARA SCAN PAGE
 // =========================
+
 let html5QrCodeInstance = null;
 let cameraRunning = false;
 let lastCameraScan = "";
 let lastCameraScanTime = 0;
+
+// 🔦 control de linterna
+async function setCameraTorch(value) {
+  if (!html5QrCodeInstance) return;
+
+  try {
+    await html5QrCodeInstance.applyVideoConstraints({
+      advanced: [{ torch: value }]
+    });
+  } catch (err) {
+    console.log("Flash no soportado o no se pudo cambiar:", err);
+  }
+}
+
+// 🔦 flash corto
+function blinkCameraTorch() {
+  setCameraTorch(true);
+
+  setTimeout(() => {
+    setCameraTorch(false);
+  }, 200);
+}
 
 async function startCameraScanner() {
   const reader = document.getElementById("reader");
@@ -1395,32 +1418,17 @@ async function startCameraScanner() {
 
         lastCameraScan = decodedText;
         lastCameraScanTime = now;
+
+        // 🔦 flash corto al escanear
         blinkCameraTorch();
-        processScannedCode(decodedText);
+
+        // procesar código
         processScannedCode(decodedText);
       },
-      () => {}
+      () => {
+        // ignorar errores de lectura continua
+      }
     );
-
-  async function setCameraTorch(value) {
-  if (!html5QrCodeInstance) return;
-
-  try {
-    await html5QrCodeInstance.applyVideoConstraints({
-      advanced: [{ torch: value }]
-    });
-  } catch (err) {
-    console.log("Flash no soportado en este dispositivo");
-  }
-}
-
-async function blinkCameraTorch() {
-  await setCameraTorch(true);
-
-  setTimeout(() => {
-    setCameraTorch(false);
-  }, 180);
-}
 
     cameraRunning = true;
     setScanMessage("Cámara activa. Apuntá al código.", "success");
@@ -1440,6 +1448,9 @@ async function stopCameraScanner() {
   }
 
   try {
+    // 🔦 apagar flash por seguridad
+    await setCameraTorch(false);
+
     await html5QrCodeInstance.stop();
     await html5QrCodeInstance.clear();
   } catch (error) {
@@ -1452,7 +1463,6 @@ async function stopCameraScanner() {
   if (reader) reader.classList.add("hidden");
   setScanMessage("Cámara detenida.");
 }
-
 // =========================
 // CÁMARA PRODUCTS PAGE
 // =========================
