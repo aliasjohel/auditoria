@@ -942,17 +942,7 @@ function setupProductsPage() {
     });
   }
 
-  if (scanProductCodeBtn) {
-    scanProductCodeBtn.addEventListener("click", async () => {
-      await startProductCameraScanner();
-    });
-  }
-
-  if (stopProductCameraBtn) {
-    stopProductCameraBtn.addEventListener("click", async () => {
-      await stopProductCameraScanner();
-    });
-  }
+  
 
   if (scanProductCodeBtn) {
     scanProductCodeBtn.addEventListener("click", async () => {
