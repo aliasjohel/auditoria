@@ -1571,63 +1571,7 @@ function exportTeamCounts() {
     return;
   }
 
-  saveTeamName(teamName);
-
-  const products = getProducts()
-    .filter((p) => (p.stockReal || 0) > 0)
-    .map((p) => ({
-      name: p.name,
-      code: p.code,
-      stockTeorico: p.stockTeorico || 0,
-      stockReal: p.stockReal || 0,
-      difference: (p.stockReal || 0) - (p.stockTeorico || 0),
-      countsByZone: p.countsByZone || {}
-    }));
-
-   
-
-  saveTeamName(teamName);
-
-  const products = getProducts()
-    .filter((p) => (p.stockReal || 0) > 0)
-    .map((p) => ({
-      name: p.name,
-      code: p.code,
-      stockTeorico: p.stockTeorico || 0,
-      stockReal: p.stockReal || 0,
-      difference: (p.stockReal || 0) - (p.stockTeorico || 0),
-      countsByZone: p.countsByZone || {}
-    }));
-
-  const payload = {
-    teamName,
-    exportedAt: new Date().toISOString(),
-    zoneProgress: getZoneProgress(),
-    products
-  };
-
-  try {
-    const response = await fetch("http://192.168.100.124:3000/sync", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(payload)
-    });
-
-    const result = await response.json();
-
-    if (!response.ok || !result.ok) {
-      setMessage("syncMsg", "No se pudo enviar a la central.", "error");
-      return;
-    }
-
-    setMessage("syncMsg", "Conteo enviado correctamente a la central Wi-Fi.", "success");
-  } catch (error) {
-    console.error("Error enviando a central:", error);
-    setMessage("syncMsg", "Error de conexión con la central.", "error");
-  }
-}
+ 
 
   const payload = {
     teamName,
@@ -1773,6 +1717,52 @@ function renderCentralSummary(teamPayloads) {
     return;
   }
 
+  saveTeamName(teamName);
+
+  const products = getProducts()
+    .filter((p) => (p.stockReal || 0) > 0)
+    .map((p) => ({
+      name: p.name,
+      code: p.code,
+      stockTeorico: p.stockTeorico || 0,
+      stockReal: p.stockReal || 0,
+      difference: (p.stockReal || 0) - (p.stockTeorico || 0),
+      countsByZone: p.countsByZone || {}
+    }));
+
+  const payload = {
+    teamName,
+    exportedAt: new Date().toISOString(),
+    zoneProgress: getZoneProgress(),
+    products
+  };
+
+  try {
+    const response = await fetch("http://192.168.100.124:3000/sync", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.ok) {
+      setMessage("syncMsg", "No se pudo enviar a la central.", "error");
+      return;
+    }
+
+    setMessage(
+      "syncMsg",
+      "Conteo enviado correctamente a la central Wi-Fi.",
+      "success"
+    );
+  } catch (error) {
+    console.error("Error enviando a central:", error);
+    setMessage("syncMsg", "Error de conexión con la central.", "error");
+  }
+}
 // =========================
 // SETUPS
 // =========================
