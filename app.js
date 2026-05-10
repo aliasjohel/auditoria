@@ -1571,6 +1571,18 @@ function exportTeamCounts() {
     return;
   }
 
+   saveTeamName(teamName);
+
+const products = getProducts()
+  .filter((p) => (p.stockReal || 0) > 0)
+  .map((p) => ({
+    name: p.name,
+    code: p.code,
+    stockTeorico: p.stockTeorico || 0,
+    stockReal: p.stockReal || 0,
+    difference: (p.stockReal || 0) - (p.stockTeorico || 0),
+    countsByZone: p.countsByZone || {}
+  }));
  
 
   const payload = {
