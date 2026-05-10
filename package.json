@@ -1,0 +1,25 @@
+{
+  "name": "auditoria",
+  "version": "1.0.0",
+  "description": "Aplicación web para control de stock y auditorías físicas de inventario, pensada para trabajar desde celular o notebook.",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aliasjohel/auditoria.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/aliasjohel/auditoria/issues"
+  },
+  "homepage": "https://github.com/aliasjohel/auditoria#readme",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.2.1"
+  }
+}
