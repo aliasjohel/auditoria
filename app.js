@@ -1584,14 +1584,7 @@ function exportTeamCounts() {
       countsByZone: p.countsByZone || {}
     }));
 
-    async function sendTeamCountsToCentral() {
-  const teamNameInput = document.getElementById("teamName");
-  const teamName = normalizeText(teamNameInput?.value || getTeamName());
-
-  if (!teamName) {
-    setMessage("syncMsg", "Escribí un nombre de equipo antes de enviar.", "error");
-    return;
-  }
+   
 
   saveTeamName(teamName);
 
@@ -1770,6 +1763,15 @@ function renderCentralSummary(teamPayloads) {
     })
     .join("");
 }
+
+ async function sendTeamCountsToCentral() {
+  const teamNameInput = document.getElementById("teamName");
+  const teamName = normalizeText(teamNameInput?.value || getTeamName());
+
+  if (!teamName) {
+    setMessage("syncMsg", "Escribí un nombre de equipo antes de enviar.", "error");
+    return;
+  }
 
 // =========================
 // SETUPS
