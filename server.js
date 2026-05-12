@@ -8,6 +8,9 @@ const PORT = 3000;
 
 app.use(cors());
 app.use(express.json({ limit: "50mb" }));
+app.use(express.static(__dirname));
+
+
 
 const DATA_DIR = path.join(__dirname, "central-data");
 
@@ -47,6 +50,26 @@ app.post("/sync", (req, res) => {
 app.get("/files", (req, res) => {
   const files = fs.readdirSync(DATA_DIR).filter(file => file.endsWith(".json"));
   res.json(files);
+});
+
+app.get("/central-data", (req, res) => {
+  try {
+    const files = fs.readdirSync(DATA_DIR).filter(file => file.endsWith(".json"));
+
+    const data = files.map((file) => {
+      const filePath = path.join(DATA_DIR, file);
+      const content = fs.readFileSync(filePath, "utf8");
+      return JSON.parse(content);
+    });
+
+    res.json(data);
+  } catch (error) {
+    console.error("Error leyendo central-data:", error);
+    res.status(500).json({
+      ok: false,
+      message: "No se pudieron leer los datos de la central"
+    });
+  }
 });
 
 app.listen(PORT, "0.0.0.0", () => {

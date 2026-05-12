@@ -1663,6 +1663,95 @@ function importTeamCountsFiles(files) {
     });
 }
 
+async function loadWifiCentralData() {
+  const box = document.getElementById("wifiCentralSummary");
+  if (!box) return;
+
+  try {
+    const response = await fetch("/central-data");
+    const teamPayloads = await response.json();
+
+    const aggregate = new Map();
+
+    for (const payload of teamPayloads) {
+      const products = Array.isArray(payload?.products) ? payload.products : [];
+
+      for (const item of products) {
+        const code = normalizeCode(item.code);
+        if (!code) continue;
+
+        if (!aggregate.has(code)) {
+          aggregate.set(code, {
+            name: item.name || "Sin nombre",
+            code,
+            stockTeorico: toPositiveInt(item.stockTeorico),
+            stockReal: 0,
+            teams: new Set()
+          });
+        }
+
+        const current = aggregate.get(code);
+        current.stockReal += toPositiveInt(item.stockReal);
+
+        if (payload?.teamName) {
+          current.teams.add(payload.teamName);
+        }
+      }
+    }
+
+    const consolidated = [...aggregate.values()];
+
+    let faltantesCount = 0;
+    let faltantesUnits = 0;
+    let sobrantesCount = 0;
+    let sobrantesUnits = 0;
+
+    if (consolidated.length === 0) {
+      box.innerHTML = "<p class='placeholder-text'>Todavía no hay conteos recibidos por Wi-Fi.</p>";
+      return;
+    }
+
+    consolidated.sort((a, b) => a.code.localeCompare(b.code));
+
+    box.innerHTML = consolidated
+      .map((item) => {
+        const diff = item.stockReal - item.stockTeorico;
+        const diffClass = getDiffClass(diff);
+
+        if (diff < 0) {
+          faltantesCount++;
+          faltantesUnits += Math.abs(diff);
+        }
+
+        if (diff > 0) {
+          sobrantesCount++;
+          sobrantesUnits += diff;
+        }
+
+        return `
+          <div class="product-item ${diffClass}">
+            <strong>${escapeHtml(item.name)}</strong><br>
+            Código: ${escapeHtml(item.code)}<br>
+            Teórico: ${item.stockTeorico}<br>
+            Real consolidado: ${item.stockReal}<br>
+            Diferencia: ${diff}<br>
+            Equipos: ${escapeHtml([...item.teams].join(", ") || "-")}
+          </div>
+        `;
+      })
+      .join("");
+
+    setText("faltantesCount", String(faltantesCount));
+    setText("faltantesUnits", String(faltantesUnits));
+    setText("sobrantesCount", String(sobrantesCount));
+    setText("sobrantesUnits", String(sobrantesUnits));
+
+  } catch (error) {
+    console.error("Error cargando central Wi-Fi:", error);
+    box.innerHTML = "<p class='error-msg'>No se pudieron cargar los datos Wi-Fi.</p>";
+  }
+}
+
 function renderCentralSummary(teamPayloads) {
   const box = document.getElementById("centralSummary");
   if (!box) return;
@@ -1892,6 +1981,7 @@ function setupCentralPage() {
   importTeamCountsBtn.addEventListener("click", () => {
     importTeamCountsFiles(teamCountFileInput.files || []);
   });
+  loadWifiCentralData();
 }
 
 function setupScanPage() {

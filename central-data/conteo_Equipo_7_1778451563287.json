@@ -1,0 +1,33 @@
+{
+  "teamName": "Equipo 7",
+  "exportedAt": "2026-05-10T22:19:20.122Z",
+  "zoneProgress": [
+    {
+      "pasillo": "1",
+      "lastFila": "5",
+      "done": false
+    }
+  ],
+  "products": [
+    {
+      "name": "Rexona",
+      "code": "75024956",
+      "stockTeorico": 5,
+      "stockReal": 1,
+      "difference": -4,
+      "countsByZone": {
+        "P1-F5": 1
+      }
+    },
+    {
+      "name": "Hinds",
+      "code": "7794640171239",
+      "stockTeorico": 3,
+      "stockReal": 2,
+      "difference": -1,
+      "countsByZone": {
+        "P1-F5": 2
+      }
+    }
+  ]
+}
