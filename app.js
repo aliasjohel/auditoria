@@ -1982,6 +1982,9 @@ function setupCentralPage() {
     importTeamCountsFiles(teamCountFileInput.files || []);
   });
   loadWifiCentralData();
+  setInterval(() => {
+  loadWifiCentralData();
+}, 10000);
 }
 
 function setupScanPage() {
