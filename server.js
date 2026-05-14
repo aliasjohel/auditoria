@@ -52,7 +52,7 @@ app.get("/files", (req, res) => {
   res.json(files);
 });
 
-app.get("/central-data", (req, res) => {
+app.get("/api/central-data", (req, res) => {
   try {
     const files = fs.readdirSync(DATA_DIR).filter(file => file.endsWith(".json"));
 

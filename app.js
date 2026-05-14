@@ -1668,7 +1668,7 @@ async function loadWifiCentralData() {
   if (!box) return;
 
   try {
-    const response = await fetch("/central-data");
+   const response = await fetch("/api/central-data");
     const teamPayloads = await response.json();
 
     const aggregate = new Map();
@@ -1706,11 +1706,15 @@ async function loadWifiCentralData() {
     let sobrantesCount = 0;
     let sobrantesUnits = 0;
 
-    if (consolidated.length === 0) {
-      box.innerHTML = "<p class='placeholder-text'>Todavía no hay conteos recibidos por Wi-Fi.</p>";
-      return;
-    }
+   if (consolidated.length === 0) {
+  setText("faltantesCount", "0");
+  setText("faltantesUnits", "0");
+  setText("sobrantesCount", "0");
+  setText("sobrantesUnits", "0");
 
+  box.innerHTML = "<p class='placeholder-text'>Todavía no hay conteos recibidos por Wi-Fi.</p>";
+  return;
+}
     consolidated.sort((a, b) => a.code.localeCompare(b.code));
 
     box.innerHTML = consolidated
