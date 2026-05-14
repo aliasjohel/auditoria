@@ -64,6 +64,32 @@ app.get("/api/central-data", (req, res) => {
       return JSON.parse(content);
     });
 
+    app.delete("/api/clear-central-data", (req, res) => {
+      try {
+        const files = fs
+          .readdirSync(DATA_DIR)
+          .filter((file) => file.endsWith(".json"));
+
+        for (const file of files) {
+          fs.unlinkSync(path.join(DATA_DIR, file));
+        }
+
+        console.log("🗑️ Central limpiada");
+
+        res.json({
+          ok: true,
+          message: "Central limpiada correctamente",
+        });
+      } catch (error) {
+        console.error("Error limpiando central:", error);
+
+        res.status(500).json({
+          ok: false,
+          message: "No se pudo limpiar la central",
+        });
+      }
+    });
+
     res.json(data);
   } catch (error) {
     console.error("Error leyendo central-data:", error);

@@ -1800,6 +1800,14 @@ async function loadWifiCentralData() {
             Real consolidado: ${item.stockReal}<br>
             Diferencia: ${diff}<br>
             Equipos: ${escapeHtml([...item.teams].join(", ") || "-")}
+            <br>
+Zonas:
+${Object.entries(item.countsByZone || {})
+  .map(
+    ([zone, qty]) =>
+      `<div style="margin-left:10px;">${escapeHtml(zone)} → ${qty}</div>`,
+  )
+  .join("")}
           </div>
         `;
       })
@@ -2048,8 +2056,12 @@ function setupHistoryPage() {
 function setupCentralPage() {
   const importTeamCountsBtn = document.getElementById("importTeamCountsBtn");
   const teamCountFileInput = document.getElementById("teamCountFileInput");
+  const clearCentralBtn = document.getElementById("clearCentralBtn");
 
   if (!importTeamCountsBtn || !teamCountFileInput) return;
+  if (clearCentralBtn) {
+    clearCentralBtn.addEventListener("click", clearCentralData);
+  }
 
   importTeamCountsBtn.addEventListener("click", () => {
     importTeamCountsFiles(teamCountFileInput.files || []);
