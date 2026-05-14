@@ -13,7 +13,7 @@ const STORAGE_KEYS = {
   zoneProgress: "zoneProgress",
   teamName: "teamName",
   controls: "controls",
-  currentControl: "currentControl"
+  currentControl: "currentControl",
 };
 
 const protectedPages = [
@@ -22,7 +22,7 @@ const protectedPages = [
   "products.html",
   "history.html",
   "central.html",
-  "scan.html"
+  "scan.html",
 ];
 
 let editingProductId = null;
@@ -43,7 +43,9 @@ function normalizeText(value) {
 }
 
 function normalizeCode(value) {
-  return String(value || "").trim().toUpperCase();
+  return String(value || "")
+    .trim()
+    .toUpperCase();
 }
 
 function toPositiveInt(value) {
@@ -92,7 +94,7 @@ function getProducts() {
       changed = true;
       return {
         ...p,
-        id: Date.now() + Math.floor(Math.random() * 100000)
+        id: Date.now() + Math.floor(Math.random() * 100000),
       };
     }
 
@@ -125,7 +127,7 @@ function clearLastScan() {
 function getCurrentZone() {
   return safeParse(localStorage.getItem(STORAGE_KEYS.currentZone), {
     pasillo: "",
-    fila: ""
+    fila: "",
   });
 }
 
@@ -134,7 +136,10 @@ function saveCurrentZone(zone) {
 }
 
 function getZoneProgress() {
-  const progress = safeParse(localStorage.getItem(STORAGE_KEYS.zoneProgress), []);
+  const progress = safeParse(
+    localStorage.getItem(STORAGE_KEYS.zoneProgress),
+    [],
+  );
   return Array.isArray(progress) ? progress : [];
 }
 
@@ -175,7 +180,7 @@ function resetAuditData() {
   const products = getProducts().map((p) => ({
     ...p,
     stockReal: 0,
-    countsByZone: {}
+    countsByZone: {},
   }));
 
   saveProducts(products);
@@ -195,7 +200,7 @@ function createControl({ cliente, sucursal, fecha, observaciones }) {
     observaciones: normalizeText(observaciones),
     createdAt: new Date().toISOString(),
     closedAt: null,
-    status: "open"
+    status: "open",
   };
 }
 
@@ -229,8 +234,8 @@ function closeCurrentControl() {
       stockTeorico: p.stockTeorico || 0,
       stockReal: p.stockReal || 0,
       difference: (p.stockReal || 0) - (p.stockTeorico || 0),
-      countsByZone: p.countsByZone || {}
-    }))
+      countsByZone: p.countsByZone || {},
+    })),
   };
 
   controls.unshift(finalControl);
@@ -266,9 +271,11 @@ function renderHistoryList(filterText = "") {
   });
 
   if (filtered.length === 0) {
-    list.innerHTML = "<p class='placeholder-text'>No hay auditorías guardadas todavía.</p>";
+    list.innerHTML =
+      "<p class='placeholder-text'>No hay auditorías guardadas todavía.</p>";
     if (detail) {
-      detail.innerHTML = "<p class='placeholder-text'>Seleccioná una auditoría para ver el detalle.</p>";
+      detail.innerHTML =
+        "<p class='placeholder-text'>Seleccioná una auditoría para ver el detalle.</p>";
     }
     return;
   }
@@ -286,7 +293,7 @@ function renderHistoryList(filterText = "") {
             <button type="button" onclick="showHistoryDetail('${control.id}')">Ver detalle</button>
           </div>
         </div>
-      `
+      `,
     )
     .join("");
 }
@@ -298,7 +305,8 @@ function showHistoryDetail(controlId) {
   const control = findControlById(controlId);
 
   if (!control) {
-    detail.innerHTML = "<p class='placeholder-text'>No se encontró la auditoría seleccionada.</p>";
+    detail.innerHTML =
+      "<p class='placeholder-text'>No se encontró la auditoría seleccionada.</p>";
     return;
   }
 
@@ -390,7 +398,7 @@ function exportControlCsv(controlId) {
     ["Fecha", control.fecha || ""],
     ["Observaciones", control.observaciones || ""],
     [],
-    ["Código", "Producto", "Stock teórico", "Stock real", "Diferencia"]
+    ["Código", "Producto", "Stock teórico", "Stock real", "Diferencia"],
   ];
 
   products.forEach((p) => {
@@ -399,15 +407,13 @@ function exportControlCsv(controlId) {
       p.name || "",
       p.stockTeorico || 0,
       p.stockReal || 0,
-      (p.stockReal || 0) - (p.stockTeorico || 0)
+      (p.stockReal || 0) - (p.stockTeorico || 0),
     ]);
   });
 
   const csv = rows
     .map((row) =>
-      row
-        .map((cell) => `"${String(cell).replaceAll('"', '""')}"`)
-        .join(";")
+      row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(";"),
     )
     .join("\n");
 
@@ -525,7 +531,7 @@ function deleteControl(controlId) {
   const confirmDelete = confirm("¿Seguro que querés eliminar esta auditoría?");
   if (!confirmDelete) return;
 
-  const updated = controls.filter(c => c.id !== controlId);
+  const updated = controls.filter((c) => c.id !== controlId);
 
   saveControls(updated);
 
@@ -596,7 +602,7 @@ function renderCurrentControlInfo() {
   if (currentControl) {
     setText(
       "currentControlExtra",
-      `Cliente: ${currentControl.cliente} | Sucursal: ${currentControl.sucursal} | Fecha: ${currentControl.fecha}`
+      `Cliente: ${currentControl.cliente} | Sucursal: ${currentControl.sucursal} | Fecha: ${currentControl.fecha}`,
     );
   } else {
     setText("currentControlExtra", "Todavía no hay una auditoría activa.");
@@ -632,12 +638,10 @@ function playBeep(type = "ok") {
       setTimeout(() => {
         beep(900, 0.12, 0.25);
       }, 140);
-
     } else {
       // 🔻 sonido error más grave
       beep(220, 0.2, 0.3);
     }
-
   } catch {
     // evitar errores si el navegador bloquea audio
   }
@@ -659,13 +663,15 @@ function createProduct({ name, code, stockTeorico }) {
     code: normalizeCode(code),
     stockTeorico: toPositiveInt(stockTeorico),
     stockReal: 0,
-    countsByZone: {}
+    countsByZone: {},
   };
 }
 
 function findProductByCode(code) {
   const normalized = normalizeCode(code);
-  return getProducts().find((p) => normalizeCode(p.code) === normalized) || null;
+  return (
+    getProducts().find((p) => normalizeCode(p.code) === normalized) || null
+  );
 }
 
 function renderProducts(filterText = "") {
@@ -683,7 +689,8 @@ function renderProducts(filterText = "") {
   });
 
   if (filteredProducts.length === 0) {
-    list.innerHTML = "<p class='placeholder-text'>No se encontraron productos.</p>";
+    list.innerHTML =
+      "<p class='placeholder-text'>No se encontraron productos.</p>";
     return;
   }
 
@@ -715,7 +722,7 @@ function renderProducts(filterText = "") {
 }
 function editProduct(code) {
   const products = getProducts();
-  const product = products.find(p => p.code === code);
+  const product = products.find((p) => p.code === code);
 
   if (!product) return;
 
@@ -739,7 +746,7 @@ function deleteProduct(code) {
 
   let products = getProducts();
 
-  products = products.filter(p => p.code !== code);
+  products = products.filter((p) => p.code !== code);
 
   localStorage.setItem("products", JSON.stringify(products));
 
@@ -772,27 +779,43 @@ function addProductFromForm() {
   const stock = toPositiveInt(stockInput.value);
 
   if (!name || !code || stockInput.value === "") {
-    setMessage("productMsg", "Completá nombre, código y stock teórico.", "error");
+    setMessage(
+      "productMsg",
+      "Completá nombre, código y stock teórico.",
+      "error",
+    );
     return;
   }
 
   const products = getProducts();
 
   if (editingProductId !== null) {
-    const index = products.findIndex((p) => String(p.id) === String(editingProductId));
+    const index = products.findIndex(
+      (p) => String(p.id) === String(editingProductId),
+    );
 
     if (index === -1) {
-      setMessage("productMsg", "No se encontró el producto para editar.", "error");
+      setMessage(
+        "productMsg",
+        "No se encontró el producto para editar.",
+        "error",
+      );
       editingProductId = null;
       return;
     }
 
     const duplicatedCode = products.some(
-      (p) => normalizeCode(p.code) === code && String(p.id) !== String(editingProductId)
+      (p) =>
+        normalizeCode(p.code) === code &&
+        String(p.id) !== String(editingProductId),
     );
 
     if (duplicatedCode) {
-      setMessage("productMsg", "Ya existe otro producto con ese código.", "error");
+      setMessage(
+        "productMsg",
+        "Ya existe otro producto con ese código.",
+        "error",
+      );
       return;
     }
 
@@ -806,7 +829,11 @@ function addProductFromForm() {
     const exists = products.some((p) => normalizeCode(p.code) === code);
 
     if (exists) {
-      setMessage("productMsg", "Ya existe un producto con ese código. Usá Editar para modificarlo.", "error");
+      setMessage(
+        "productMsg",
+        "Ya existe un producto con ese código. Usá Editar para modificarlo.",
+        "error",
+      );
       return;
     }
 
@@ -828,7 +855,12 @@ function importProductsFromCsvText(csvText) {
     .filter(Boolean);
 
   if (lines.length === 0) {
-    return { added: 0, updated: 0, skipped: 0, error: "El archivo CSV está vacío." };
+    return {
+      added: 0,
+      updated: 0,
+      skipped: 0,
+      error: "El archivo CSV está vacío.",
+    };
   }
 
   const products = getProducts();
@@ -926,7 +958,7 @@ function setupProductsPage() {
         setMessage(
           "csvMsg",
           `Importación terminada. Nuevos: ${result.added}, Actualizados: ${result.updated}, Omitidos: ${result.skipped}.`,
-          "success"
+          "success",
         );
 
         csvInput.value = "";
@@ -941,8 +973,6 @@ function setupProductsPage() {
       reader.readAsText(file);
     });
   }
-
-  
 
   if (scanProductCodeBtn) {
     scanProductCodeBtn.addEventListener("click", async () => {
@@ -979,7 +1009,9 @@ function renderCurrentZone() {
 }
 
 function saveZoneFromInputs() {
-  const pasillo = normalizeText(document.getElementById("currentPasillo")?.value);
+  const pasillo = normalizeText(
+    document.getElementById("currentPasillo")?.value,
+  );
   const fila = normalizeText(document.getElementById("currentFila")?.value);
 
   if (!pasillo || !fila) {
@@ -989,7 +1021,11 @@ function saveZoneFromInputs() {
 
   const zone = { pasillo, fila };
   saveCurrentZone(zone);
-  setMessage("zoneMsg", `Zona guardada: ${getReadableZone(pasillo, fila)}.`, "success");
+  setMessage(
+    "zoneMsg",
+    `Zona guardada: ${getReadableZone(pasillo, fila)}.`,
+    "success",
+  );
   return zone;
 }
 
@@ -1033,12 +1069,16 @@ function markPasilloDone() {
     progress.push({
       pasillo: zone.pasillo,
       lastFila: zone.fila || "",
-      done: true
+      done: true,
     });
   }
 
   saveZoneProgress(progress);
-  setMessage("zoneMsg", `Pasillo ${zone.pasillo} marcado como terminado.`, "success");
+  setMessage(
+    "zoneMsg",
+    `Pasillo ${zone.pasillo} marcado como terminado.`,
+    "success",
+  );
   renderZoneProgress();
 }
 
@@ -1055,7 +1095,7 @@ function updateZoneProgressAfterScan(zone) {
     progress.push({
       pasillo: zone.pasillo,
       lastFila: zone.fila || "",
-      done: false
+      done: false,
     });
   }
 
@@ -1069,7 +1109,8 @@ function renderZoneProgress() {
   const progress = getZoneProgress();
 
   if (progress.length === 0) {
-    box.innerHTML = "<p class='placeholder-text'>Todavía no hay progreso de zonas.</p>";
+    box.innerHTML =
+      "<p class='placeholder-text'>Todavía no hay progreso de zonas.</p>";
     return;
   }
 
@@ -1100,7 +1141,7 @@ function renderZoneProgress() {
             Última fila: ${escapeHtml(item.lastFila || "-")}<br>
             Estado: ${item.done ? "Terminado" : "En progreso"}
           </div>
-        `
+        `,
       )
       .join("")}
   `;
@@ -1118,7 +1159,8 @@ function renderAdjustResults(search = "") {
   const term = normalizeText(search).toLowerCase();
 
   if (!term) {
-    box.innerHTML = "<p class='placeholder-text'>Buscá un producto para ajustar.</p>";
+    box.innerHTML =
+      "<p class='placeholder-text'>Buscá un producto para ajustar.</p>";
     return;
   }
 
@@ -1130,7 +1172,8 @@ function renderAdjustResults(search = "") {
   });
 
   if (products.length === 0) {
-    box.innerHTML = "<p class='placeholder-text'>No se encontraron productos.</p>";
+    box.innerHTML =
+      "<p class='placeholder-text'>No se encontraron productos.</p>";
     return;
   }
 
@@ -1167,7 +1210,7 @@ function selectAdjustProduct(code) {
   setMessage(
     "adjustMsg",
     `Producto seleccionado: ${product.name} - Código: ${product.code}`,
-    "success"
+    "success",
   );
 }
 
@@ -1199,13 +1242,13 @@ function adjustSelectedProduct(amount) {
   saveLastScan({
     code: selectedAdjustCode,
     amount: realAmount,
-    zone: validZone
+    zone: validZone,
   });
 
   setMessage(
     "adjustMsg",
     `Ajuste aplicado a ${updated.name}. Cantidad: ${realAmount}`,
-    "success"
+    "success",
   );
 
   showScannedProduct(updated, validZone);
@@ -1219,7 +1262,9 @@ function adjustSelectedProduct(amount) {
 function updateProductReal(code, amount, zone = null) {
   const products = getProducts();
   const normalizedCode = normalizeCode(code);
-  const index = products.findIndex((p) => normalizeCode(p.code) === normalizedCode);
+  const index = products.findIndex(
+    (p) => normalizeCode(p.code) === normalizedCode,
+  );
 
   if (index === -1) return null;
 
@@ -1274,7 +1319,8 @@ function renderScanSummary() {
   const products = getProducts();
 
   if (products.length === 0) {
-    box.innerHTML = "<p class='placeholder-text'>No hay productos cargados todavía.</p>";
+    box.innerHTML =
+      "<p class='placeholder-text'>No hay productos cargados todavía.</p>";
     return;
   }
 
@@ -1335,7 +1381,7 @@ function processScannedCode(rawCode) {
   saveLastScan({
     code,
     amount: 1,
-    zone
+    zone,
   });
 
   updateZoneProgressAfterScan(zone);
@@ -1362,7 +1408,7 @@ async function setCameraTorch(value) {
 
   try {
     await html5QrCodeInstance.applyVideoConstraints({
-      advanced: [{ torch: value }]
+      advanced: [{ torch: value }],
     });
   } catch (err) {
     console.log("Flash no soportado o no se pudo cambiar:", err);
@@ -1397,7 +1443,7 @@ async function startCameraScanner() {
       {
         fps: 10,
         qrbox: { width: 250, height: 140 },
-        aspectRatio: 1.7778
+        aspectRatio: 1.7778,
       },
       (decodedText) => {
         const now = Date.now();
@@ -1417,7 +1463,7 @@ async function startCameraScanner() {
       },
       () => {
         // ignorar errores de lectura continua
-      }
+      },
     );
 
     cameraRunning = true;
@@ -1425,7 +1471,10 @@ async function startCameraScanner() {
   } catch (error) {
     console.error("Error al abrir cámara:", error);
     reader.classList.add("hidden");
-    setScanMessage("No se pudo abrir la cámara. Revisá permisos del navegador.", "error");
+    setScanMessage(
+      "No se pudo abrir la cámara. Revisá permisos del navegador.",
+      "error",
+    );
   }
 }
 
@@ -1482,7 +1531,7 @@ async function startProductCameraScanner() {
       {
         fps: 10,
         qrbox: { width: 250, height: 140 },
-        aspectRatio: 1.7778
+        aspectRatio: 1.7778,
       },
       async (decodedText) => {
         const now = Date.now();
@@ -1505,7 +1554,7 @@ async function startProductCameraScanner() {
         await stopProductCameraScanner();
         codeInput.focus();
       },
-      () => {}
+      () => {},
     );
 
     productCameraRunning = true;
@@ -1567,33 +1616,36 @@ function exportTeamCounts() {
   const teamName = normalizeText(teamNameInput?.value || getTeamName());
 
   if (!teamName) {
-    setMessage("teamMsg", "Escribí un nombre de equipo antes de exportar.", "error");
+    setMessage(
+      "teamMsg",
+      "Escribí un nombre de equipo antes de exportar.",
+      "error",
+    );
     return;
   }
 
-   saveTeamName(teamName);
+  saveTeamName(teamName);
 
-const products = getProducts()
-  .filter((p) => (p.stockReal || 0) > 0)
-  .map((p) => ({
-    name: p.name,
-    code: p.code,
-    stockTeorico: p.stockTeorico || 0,
-    stockReal: p.stockReal || 0,
-    difference: (p.stockReal || 0) - (p.stockTeorico || 0),
-    countsByZone: p.countsByZone || {}
-  }));
- 
+  const products = getProducts()
+    .filter((p) => (p.stockReal || 0) > 0)
+    .map((p) => ({
+      name: p.name,
+      code: p.code,
+      stockTeorico: p.stockTeorico || 0,
+      stockReal: p.stockReal || 0,
+      difference: (p.stockReal || 0) - (p.stockTeorico || 0),
+      countsByZone: p.countsByZone || {},
+    }));
 
   const payload = {
     teamName,
     exportedAt: new Date().toISOString(),
     zoneProgress: getZoneProgress(),
-    products
+    products,
   };
 
   const blob = new Blob([JSON.stringify(payload, null, 2)], {
-    type: "application/json"
+    type: "application/json",
   });
 
   const safeTeamName = teamName.replace(/[^\w-]+/g, "_");
@@ -1603,14 +1655,18 @@ const products = getProducts()
   link.click();
   URL.revokeObjectURL(link.href);
 
-  setMessage("teamMsg", "Conteos del equipo exportados correctamente.", "success");
+  setMessage(
+    "teamMsg",
+    "Conteos del equipo exportados correctamente.",
+    "success",
+  );
 }
 
 function clearLocalCounts() {
   const products = getProducts().map((p) => ({
     ...p,
     stockReal: 0,
-    countsByZone: {}
+    countsByZone: {},
   }));
 
   saveProducts(products);
@@ -1648,9 +1704,10 @@ function importTeamCountsFiles(files) {
           }
         };
 
-        reader.onerror = () => reject(new Error(`No se pudo leer: ${file.name}`));
+        reader.onerror = () =>
+          reject(new Error(`No se pudo leer: ${file.name}`));
         reader.readAsText(file);
-      })
+      }),
   );
 
   Promise.all(readers)
@@ -1668,9 +1725,9 @@ async function loadWifiCentralData() {
   if (!box) return;
 
   try {
-   const response = await fetch(`/api/central-data?t=${Date.now()}`, {
-  cache: "no-store"
-});
+    const response = await fetch(`/api/central-data?t=${Date.now()}`, {
+      cache: "no-store",
+    });
     const teamPayloads = await response.json();
 
     const aggregate = new Map();
@@ -1688,7 +1745,7 @@ async function loadWifiCentralData() {
             code,
             stockTeorico: toPositiveInt(item.stockTeorico),
             stockReal: 0,
-            teams: new Set()
+            teams: new Set(),
           });
         }
 
@@ -1708,15 +1765,16 @@ async function loadWifiCentralData() {
     let sobrantesCount = 0;
     let sobrantesUnits = 0;
 
-   if (consolidated.length === 0) {
-  setText("faltantesCount", "0");
-  setText("faltantesUnits", "0");
-  setText("sobrantesCount", "0");
-  setText("sobrantesUnits", "0");
+    if (consolidated.length === 0) {
+      setText("faltantesCount", "0");
+      setText("faltantesUnits", "0");
+      setText("sobrantesCount", "0");
+      setText("sobrantesUnits", "0");
 
-  box.innerHTML = "<p class='placeholder-text'>Todavía no hay conteos recibidos por Wi-Fi.</p>";
-  return;
-}
+      box.innerHTML =
+        "<p class='placeholder-text'>Todavía no hay conteos recibidos por Wi-Fi.</p>";
+      return;
+    }
     consolidated.sort((a, b) => a.code.localeCompare(b.code));
 
     box.innerHTML = consolidated
@@ -1751,10 +1809,10 @@ async function loadWifiCentralData() {
     setText("faltantesUnits", String(faltantesUnits));
     setText("sobrantesCount", String(sobrantesCount));
     setText("sobrantesUnits", String(sobrantesUnits));
-
   } catch (error) {
     console.error("Error cargando central Wi-Fi:", error);
-    box.innerHTML = "<p class='error-msg'>No se pudieron cargar los datos Wi-Fi.</p>";
+    box.innerHTML =
+      "<p class='error-msg'>No se pudieron cargar los datos Wi-Fi.</p>";
   }
 }
 
@@ -1777,7 +1835,7 @@ function renderCentralSummary(teamPayloads) {
           code,
           stockTeorico: toPositiveInt(item.stockTeorico),
           stockReal: 0,
-          teams: new Set()
+          teams: new Set(),
         });
       }
 
@@ -1790,7 +1848,8 @@ function renderCentralSummary(teamPayloads) {
   const consolidated = [...aggregate.values()];
 
   if (consolidated.length === 0) {
-    box.innerHTML = "<p class='placeholder-text'>Todavía no hay datos importados.</p>";
+    box.innerHTML =
+      "<p class='placeholder-text'>Todavía no hay datos importados.</p>";
     return;
   }
 
@@ -1815,23 +1874,18 @@ function renderCentralSummary(teamPayloads) {
     .join("");
 }
 
- async function sendTeamCountsToCentral() {
+async function sendTeamCountsToCentral() {
   const teamNameInput = document.getElementById("teamName");
   const teamName = normalizeText(teamNameInput?.value || getTeamName());
-  const zoneIdInput = document.getElementById("zoneId");
 
-const zoneId = normalizeText(zoneIdInput?.value || "");
-
-  if (!teamName || !zoneId) {
-  setMessage(
-    "syncMsg",
-    "Completá equipo y pasillo/fila antes de enviar.",
-    "error"
-  );
-
-  return;
-}
-
+  if (!teamName) {
+    setMessage(
+      "syncMsg",
+      "Escribí un nombre de equipo antes de enviar.",
+      "error",
+    );
+    return;
+  }
   saveTeamName(teamName);
 
   const products = getProducts()
@@ -1842,24 +1896,24 @@ const zoneId = normalizeText(zoneIdInput?.value || "");
       stockTeorico: p.stockTeorico || 0,
       stockReal: p.stockReal || 0,
       difference: (p.stockReal || 0) - (p.stockTeorico || 0),
-      countsByZone: p.countsByZone || {}
+      countsByZone: p.countsByZone || {},
     }));
 
   const payload = {
     teamName,
-    zoneId,
+
     exportedAt: new Date().toISOString(),
     zoneProgress: getZoneProgress(),
-    products
+    products,
   };
 
   try {
     const response = await fetch("http://192.168.100.124:3000/sync", {
       method: "POST",
       headers: {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     });
 
     const result = await response.json();
@@ -1872,7 +1926,7 @@ const zoneId = normalizeText(zoneIdInput?.value || "");
     setMessage(
       "syncMsg",
       "Conteo enviado correctamente a la central Wi-Fi.",
-      "success"
+      "success",
     );
   } catch (error) {
     console.error("Error enviando a central:", error);
@@ -1964,11 +2018,15 @@ function setupNewControlPage() {
       cliente,
       sucursal,
       fecha,
-      observaciones
+      observaciones,
     });
 
     saveCurrentControl(control);
-    setMessage("controlMsg", "Auditoría guardada y activada correctamente.", "success");
+    setMessage(
+      "controlMsg",
+      "Auditoría guardada y activada correctamente.",
+      "success",
+    );
   });
 }
 
@@ -1998,8 +2056,8 @@ function setupCentralPage() {
   });
   loadWifiCentralData();
   setInterval(() => {
-  loadWifiCentralData();
-}, 10000);
+    loadWifiCentralData();
+  }, 10000);
 }
 
 function setupScanPage() {
@@ -2042,8 +2100,8 @@ function setupScanPage() {
   }
 
   if (sendToCentralBtn) {
-  sendToCentralBtn.addEventListener("click", sendTeamCountsToCentral);
-}
+    sendToCentralBtn.addEventListener("click", sendTeamCountsToCentral);
+  }
 
   if (addQtyBtn) {
     addQtyBtn.addEventListener("click", () => {
@@ -2096,7 +2154,9 @@ function setupScanPage() {
 
   if (minusBtn) {
     minusBtn.addEventListener("click", () => {
-      const code = normalizeCode(document.getElementById("resultCode")?.textContent);
+      const code = normalizeCode(
+        document.getElementById("resultCode")?.textContent,
+      );
       const zone = getCurrentZone();
 
       if (!code) return;
@@ -2129,7 +2189,11 @@ function setupScanPage() {
       }
 
       const reverseAmount = lastScan.amount === 1 ? -1 : 1;
-      const updated = updateProductReal(lastScan.code, reverseAmount, lastScan.zone);
+      const updated = updateProductReal(
+        lastScan.code,
+        reverseAmount,
+        lastScan.zone,
+      );
 
       if (updated) {
         setScanMessage("Último escaneo deshecho correctamente.", "success");
@@ -2206,7 +2270,9 @@ function registerServiceWorker() {
             newWorker.state === "installed" &&
             navigator.serviceWorker.controller
           ) {
-            alert("Hay una nueva versión disponible. La aplicación se actualizará automáticamente.");
+            alert(
+              "Hay una nueva versión disponible. La aplicación se actualizará automáticamente.",
+            );
             newWorker.postMessage({ type: "SKIP_WAITING" });
           }
         });

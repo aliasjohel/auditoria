@@ -10,8 +10,6 @@ app.use(cors());
 app.use(express.json({ limit: "50mb" }));
 app.use(express.static(__dirname));
 
-
-
 const DATA_DIR = path.join(__dirname, "central-data");
 
 if (!fs.existsSync(DATA_DIR)) {
@@ -28,12 +26,12 @@ app.post("/sync", (req, res) => {
   if (!data || !data.teamName) {
     return res.status(400).json({
       ok: false,
-      message: "Datos inválidos. Falta teamName."
+      message: "Datos inválidos. Falta teamName.",
     });
   }
 
   const safeTeamName = String(data.teamName).replace(/[^\w-]+/g, "_");
-  const fileName = `conteo_${safeTeamName}_${Date.now()}.json`;
+  const fileName = `conteo_${safeTeamName}.json`;
   const filePath = path.join(DATA_DIR, fileName);
 
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf8");
@@ -43,18 +41,22 @@ app.post("/sync", (req, res) => {
   res.json({
     ok: true,
     message: "Conteo recibido correctamente",
-    fileName
+    fileName,
   });
 });
 
 app.get("/files", (req, res) => {
-  const files = fs.readdirSync(DATA_DIR).filter(file => file.endsWith(".json"));
+  const files = fs
+    .readdirSync(DATA_DIR)
+    .filter((file) => file.endsWith(".json"));
   res.json(files);
 });
 
 app.get("/api/central-data", (req, res) => {
   try {
-    const files = fs.readdirSync(DATA_DIR).filter(file => file.endsWith(".json"));
+    const files = fs
+      .readdirSync(DATA_DIR)
+      .filter((file) => file.endsWith(".json"));
 
     const data = files.map((file) => {
       const filePath = path.join(DATA_DIR, file);
@@ -67,7 +69,7 @@ app.get("/api/central-data", (req, res) => {
     console.error("Error leyendo central-data:", error);
     res.status(500).json({
       ok: false,
-      message: "No se pudieron leer los datos de la central"
+      message: "No se pudieron leer los datos de la central",
     });
   }
 });
