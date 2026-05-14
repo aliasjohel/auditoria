@@ -1787,7 +1787,14 @@ async function loadWifiCentralData() {
       }
     }
 
-    const consolidated = [...aggregate.values()];
+    const searchTerm = normalizeText(document.getElementById("centralSearch")?.value).toLowerCase();
+
+const consolidated = [...aggregate.values()].filter((item) => {
+  const name = String(item.name || "").toLowerCase();
+  const code = String(item.code || "").toLowerCase();
+
+  return !searchTerm || name.includes(searchTerm) || code.includes(searchTerm);
+});
 
     let faltantesCount = 0;
     let faltantesUnits = 0;
@@ -2086,7 +2093,13 @@ function setupCentralPage() {
   const importTeamCountsBtn = document.getElementById("importTeamCountsBtn");
   const teamCountFileInput = document.getElementById("teamCountFileInput");
   const clearCentralBtn = document.getElementById("clearCentralBtn");
-
+  const centralSearch = document.getElementById("centralSearch");
+  
+  if (centralSearch) {
+  centralSearch.addEventListener("input", () => {
+    loadWifiCentralData();
+  });
+}
   if (!importTeamCountsBtn || !teamCountFileInput) return;
   if (clearCentralBtn) {
     clearCentralBtn.addEventListener("click", clearCentralData);
