@@ -1818,11 +1818,19 @@ function renderCentralSummary(teamPayloads) {
  async function sendTeamCountsToCentral() {
   const teamNameInput = document.getElementById("teamName");
   const teamName = normalizeText(teamNameInput?.value || getTeamName());
+  const zoneIdInput = document.getElementById("zoneId");
 
-  if (!teamName) {
-    setMessage("syncMsg", "Escribí un nombre de equipo antes de enviar.", "error");
-    return;
-  }
+const zoneId = normalizeText(zoneIdInput?.value || "");
+
+  if (!teamName || !zoneId) {
+  setMessage(
+    "syncMsg",
+    "Completá equipo y pasillo/fila antes de enviar.",
+    "error"
+  );
+
+  return;
+}
 
   saveTeamName(teamName);
 
@@ -1839,6 +1847,7 @@ function renderCentralSummary(teamPayloads) {
 
   const payload = {
     teamName,
+    zoneId,
     exportedAt: new Date().toISOString(),
     zoneProgress: getZoneProgress(),
     products
