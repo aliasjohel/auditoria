@@ -1668,7 +1668,9 @@ async function loadWifiCentralData() {
   if (!box) return;
 
   try {
-   const response = await fetch("/api/central-data");
+   const response = await fetch(`/api/central-data?t=${Date.now()}`, {
+  cache: "no-store"
+});
     const teamPayloads = await response.json();
 
     const aggregate = new Map();
