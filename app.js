@@ -1720,6 +1720,35 @@ function importTeamCountsFiles(files) {
     });
 }
 
+async function clearCentralData() {
+  const confirmed = confirm(
+    "¿Seguro que querés borrar todos los conteos de la central?"
+  );
+
+  if (!confirmed) return;
+
+  try {
+    const response = await fetch("/api/clear-central-data", {
+      method: "DELETE",
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.ok) {
+      alert("No se pudo limpiar la central.");
+      return;
+    }
+
+    await loadWifiCentralData();
+
+    alert("Central limpiada correctamente.");
+  } catch (error) {
+    console.error("Error limpiando central:", error);
+
+    alert("Error de conexión con la central.");
+  }
+}
+
 async function loadWifiCentralData() {
   const box = document.getElementById("wifiCentralSummary");
   if (!box) return;
