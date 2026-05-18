@@ -1750,8 +1750,12 @@ async function clearCentralData() {
 }
 
 async function loadWifiCentralData() {
-  const box = document.getElementById("wifiCentralSummary");
-  if (!box) return;
+  const faltantesBox = document.getElementById("faltantesList");
+const sobrantesBox = document.getElementById("sobrantesList");
+const correctosBox = document.getElementById("correctosList");
+
+if (!faltantesBox || !sobrantesBox || !correctosBox) return;
+  
 
   try {
     const response = await fetch(`/api/central-data?t=${Date.now()}`, {
@@ -1821,41 +1825,51 @@ const consolidated = [...aggregate.values()].filter((item) => {
     }
     consolidated.sort((a, b) => a.code.localeCompare(b.code));
 
-    box.innerHTML = consolidated
-      .map((item) => {
-        const diff = item.stockReal - item.stockTeorico;
-        const diffClass = getDiffClass(diff);
+   const faltantes = [];
+const sobrantes = [];
+const correctos = [];
 
-        if (diff < 0) {
-          faltantesCount++;
-          faltantesUnits += Math.abs(diff);
-        }
+consolidated.forEach((item) => {
+  const diff = item.stockReal - item.stockTeorico;
+  const diffClass = getDiffClass(diff);
 
-        if (diff > 0) {
-          sobrantesCount++;
-          sobrantesUnits += diff;
-        }
+  const zonesHtml = Object.entries(item.countsByZone || {})
+    .map(([zone, qty]) => `${zone} → ${qty}`)
+    .join("<br>");
 
-        return `
-          <div class="product-item ${diffClass}">
-            <strong>${escapeHtml(item.name)}</strong><br>
-            Código: ${escapeHtml(item.code)}<br>
-            Teórico: ${item.stockTeorico}<br>
-            Real consolidado: ${item.stockReal}<br>
-            Diferencia: ${diff}<br>
-            Equipos: ${escapeHtml([...item.teams].join(", ") || "-")}
-            <br>
-Zonas:
-${Object.entries(item.countsByZone || {})
-  .map(
-    ([zone, qty]) =>
-      `<div style="margin-left:10px;">${escapeHtml(zone)} → ${qty}</div>`,
-  )
-  .join("")}
-          </div>
-        `;
-      })
-      .join("");
+  const html = `
+    <div class="product-item ${diffClass}">
+      <strong>${escapeHtml(item.name)}</strong><br>
+      Código: ${escapeHtml(item.code)}<br>
+      Teórico: ${item.stockTeorico}<br>
+      Real consolidado: ${item.stockReal}<br>
+      Diferencia: ${diff}<br>
+      Equipos: ${escapeHtml([...item.teams].join(", ") || "-")}<br>
+      Zonas:<br>
+      ${zonesHtml || "-"}
+    </div>
+  `;
+
+  if (diff < 0) {
+    faltantes.push(html);
+  } else if (diff > 0) {
+    sobrantes.push(html);
+  } else {
+    correctos.push(html);
+  }
+});
+
+faltantesBox.innerHTML =
+  faltantes.join("") ||
+  "<p class='placeholder-text'>No hay faltantes.</p>";
+
+sobrantesBox.innerHTML =
+  sobrantes.join("") ||
+  "<p class='placeholder-text'>No hay sobrantes.</p>";
+
+correctosBox.innerHTML =
+  correctos.join("") ||
+  "<p class='placeholder-text'>No hay productos correctos.</p>";
 
     setText("faltantesCount", String(faltantesCount));
     setText("faltantesUnits", String(faltantesUnits));
