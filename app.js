@@ -1833,6 +1833,16 @@ consolidated.forEach((item) => {
   const diff = item.stockReal - item.stockTeorico;
   const diffClass = getDiffClass(diff);
 
+  if (diff < 0) {
+  faltantesCount++;
+  faltantesUnits += Math.abs(diff);
+}
+
+if (diff > 0) {
+  sobrantesCount++;
+  sobrantesUnits += diff;
+}
+
   const zonesHtml = Object.entries(item.countsByZone || {})
     .map(([zone, qty]) => `${zone} → ${qty}`)
     .join("<br>");
