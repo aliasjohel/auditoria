@@ -1775,11 +1775,19 @@ async function loadWifiCentralData() {
             stockTeorico: toPositiveInt(item.stockTeorico),
             stockReal: 0,
             teams: new Set(),
+            countsByZone: {},
           });
         }
 
         const current = aggregate.get(code);
         current.stockReal += toPositiveInt(item.stockReal);
+
+        Object.entries(item.countsByZone || {}).forEach(
+  ([zone, qty]) => {
+    current.countsByZone[zone] =
+      (current.countsByZone[zone] || 0) + qty;
+  },
+);
 
         if (payload?.teamName) {
           current.teams.add(payload.teamName);
