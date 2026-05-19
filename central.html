@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,6 +9,7 @@
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0d6efd">
 </head>
+
 <body>
 
   <div class="navbar">
@@ -25,63 +27,63 @@
       <input type="file" id="teamCountFileInput" accept=".json" multiple>
       <button id="importTeamCountsBtn" type="button">Importar archivos</button>
       <button id="clearCentralBtn" type="button" class="danger-btn">
-  Limpiar central
-</button>
+        Limpiar central
+      </button>
+      <button id="exportExcelBtn" type="button">
+        Exportar Excel
+      </button>
 
       <p id="centralMsg" class="info-msg"></p>
       <div id="centralSummary" class="products-list"></div>
       <hr style="margin:30px 0;">
 
-<h3>Resumen automático</h3>
-<input
-  type="text"
-  id="centralSearch"
-  placeholder="Buscar por nombre o código..."
->
+      <h3>Resumen automático</h3>
+      <input type="text" id="centralSearch" placeholder="Buscar por nombre o código...">
 
-<div class="summary-grid">
+      <div class="summary-grid">
 
-  <div class="summary-card">
-    <strong>Productos con faltantes</strong>
-    <h2 id="faltantesCount">0</h2>
-  </div>
+        <div class="summary-card">
+          <strong>Productos con faltantes</strong>
+          <h2 id="faltantesCount">0</h2>
+        </div>
 
-  <div class="summary-card">
-    <strong>Unidades faltantes</strong>
-    <h2 id="faltantesUnits">0</h2>
-  </div>
+        <div class="summary-card">
+          <strong>Unidades faltantes</strong>
+          <h2 id="faltantesUnits">0</h2>
+        </div>
 
-  <div class="summary-card">
-    <strong>Productos con sobrantes</strong>
-    <h2 id="sobrantesCount">0</h2>
-  </div>
+        <div class="summary-card">
+          <strong>Productos con sobrantes</strong>
+          <h2 id="sobrantesCount">0</h2>
+        </div>
 
-  <div class="summary-card">
-    <strong>Unidades sobrantes</strong>
-    <h2 id="sobrantesUnits">0</h2>
-  </div>
+        <div class="summary-card">
+          <strong>Unidades sobrantes</strong>
+          <h2 id="sobrantesUnits">0</h2>
+        </div>
 
-</div>
+      </div>
 
-<div class="central-columns">
-  <div>
-    <h3>Correctos</h3>
-    <div id="correctosList" class="products-list"></div>
-  </div>
+      <div class="central-columns">
+        <div>
+          <h3>Correctos</h3>
+          <div id="correctosList" class="products-list"></div>
+        </div>
 
-  <div>
-    <h3>Faltantes</h3>
-    <div id="faltantesList" class="products-list"></div>
-  </div>
+        <div>
+          <h3>Faltantes</h3>
+          <div id="faltantesList" class="products-list"></div>
+        </div>
 
-  <div>
-    <h3>Sobrantes</h3>
-    <div id="sobrantesList" class="products-list"></div>
-  </div>
-</div>
+        <div>
+          <h3>Sobrantes</h3>
+          <div id="sobrantesList" class="products-list"></div>
+        </div>
+      </div>
     </div>
   </div>
 
   <script src="app.js"></script>
 </body>
+
 </html>

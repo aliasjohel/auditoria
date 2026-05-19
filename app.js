@@ -2126,6 +2126,13 @@ function setupCentralPage() {
   const teamCountFileInput = document.getElementById("teamCountFileInput");
   const clearCentralBtn = document.getElementById("clearCentralBtn");
   const centralSearch = document.getElementById("centralSearch");
+  const exportExcelBtn = document.getElementById("exportExcelBtn");
+
+  if (exportExcelBtn) {
+  exportExcelBtn.addEventListener("click", () => {
+    window.open("/api/export-excel", "_blank");
+  });
+}
   
   if (centralSearch) {
   centralSearch.addEventListener("input", () => {

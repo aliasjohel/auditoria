@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const fs = require("fs");
 const path = require("path");
+const XLSX = require("xlsx");
 
 const app = express();
 const PORT = 3000;
@@ -63,6 +64,73 @@ app.get("/api/central-data", (req, res) => {
       const content = fs.readFileSync(filePath, "utf8");
       return JSON.parse(content);
     });
+
+    app.get("/api/export-excel", (req, res) => {});
+    try {
+  const files = fs
+    .readdirSync(DATA_DIR)
+    .filter((file) => file.endsWith(".json"));
+
+  const rows = [];
+
+  files.forEach((file) => {
+    const filePath = path.join(DATA_DIR, file);
+
+    const content = fs.readFileSync(filePath, "utf8");
+
+    const payload = JSON.parse(content);
+
+    (payload.products || []).forEach((product) => {
+      rows.push({
+        Equipo: payload.teamName || "-",
+        Producto: product.name || "-",
+        Codigo: product.code || "-",
+        Teorico: product.stockTeorico || 0,
+        Real: product.stockReal || 0,
+        Diferencia:
+          (product.stockReal || 0) -
+          (product.stockTeorico || 0),
+        Pasillo: product.pasillo || "-",
+        Fila: product.fila || "-",
+      });
+    });
+  });
+
+  const workbook = XLSX.utils.book_new();
+
+  const worksheet = XLSX.utils.json_to_sheet(rows);
+
+  XLSX.utils.book_append_sheet(
+    workbook,
+    worksheet,
+    "Auditoria"
+  );
+
+  const buffer = XLSX.write(workbook, {
+    type: "buffer",
+    bookType: "xlsx",
+  });
+
+  res.setHeader(
+    "Content-Disposition",
+    'attachment; filename="auditoria.xlsx"'
+  );
+
+  res.setHeader(
+    "Content-Type",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  );
+
+  res.send(buffer);
+
+} catch (error) {
+  console.error(error);
+
+  res.status(500).json({
+    ok: false,
+    error: "Error generando Excel",
+  });
+}
 
     app.delete("/api/clear-central-data", (req, res) => {
       try {
