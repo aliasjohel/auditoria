@@ -2189,9 +2189,7 @@ function setupScanPage() {
   const subtractQtyBtn = document.getElementById("subtractQtyBtn");
   const centralIpInput = document.getElementById("centralIp");
   const saveCentralIpBtn = document.getElementById("saveCentralIpBtn");
-  const testCentralConnectionBtn = document.getElementById(
-    "testCentralConnectionBtn",
-  );
+  const testCentralConnectionBtn = document.getElementById("testCentralConnectionBtn");
 
   renderCurrentZone();
   renderZoneProgress();
