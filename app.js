@@ -2189,7 +2189,9 @@ function setupScanPage() {
   const subtractQtyBtn = document.getElementById("subtractQtyBtn");
   const centralIpInput = document.getElementById("centralIp");
   const saveCentralIpBtn = document.getElementById("saveCentralIpBtn");
-  const testCentralConnectionBtn = document.getElementById("testCentralConnectionBtn");
+  const testCentralConnectionBtn = document.getElementById(
+    "testCentralConnectionBtn",
+  );
 
   renderCurrentZone();
   renderZoneProgress();
@@ -2345,68 +2347,92 @@ function setupScanPage() {
     clearLocalCountsBtn.addEventListener("click", clearLocalCounts);
   }
 
-  if (saveCentralIpBtn && centralIpInput) {
-        saveCentralIpBtn.addEventListener("click", () => {
-          const ip = normalizeText(centralIpInput.value);
+ if (saveCentralIpBtn && centralIpInput) {
+  saveCentralIpBtn.addEventListener("click", () => {
+    const ip = normalizeText(centralIpInput.value);
 
-          if (!ip) {
-            setMessage("centralIpMsg", "Ingresá la IP de la central.", "error");
-            return;
-          }
+    if (!ip) {
+      setMessage("centralIpMsg", "Ingresá la IP de la central.", "error");
+      return;
+    }
 
-          if (testCentralConnectionBtn && centralIpInput) {
-        testCentralConnectionBtn.addEventListener("click", async () => {
-          const ip = normalizeText(centralIpInput.value || getCentralIp());
+    saveCentralIp(ip);
 
-          if (!ip) {
-            setMessage("centralIpMsg", "Ingresá la IP de la central.", "error");
-            return;
-          }
-
-
-  if (closeControlBtn) {
-    closeControlBtn.addEventListener("click", () => {
-      const currentControl = getCurrentControl();
-
-      if (!currentControl) {
-        setScanMessage("No hay auditoría activa para cerrar.", "error");
-        return;
-      }
-
-      const savedControl = closeCurrentControl();
-
-      if (savedControl) {
-        setScanMessage("Auditoría cerrada y guardada en historial.", "success");
-        renderCurrentControlInfo();
-      }
-
-      
-
-          saveCentralIp(ip);
-          setMessage("centralIpMsg", "IP de central guardada.", "success");
-        });
-      }
-
-      
-          try {
-            const response = await fetch(`http://${ip}:3000`);
-
-            if (!response.ok) throw new Error("Sin conexión");
-
-            saveCentralIp(ip);
-            setMessage("centralIpMsg", "Conexión con central OK.", "success");
-          } catch {
-            setMessage(
-              "centralIpMsg",
-              "No se pudo conectar con la central.",
-              "error",
-            );
-          }
-        });
-      }
-    });
-  }
+    setMessage(
+      "centralIpMsg",
+      "IP de central guardada.",
+      "success",
+    );
+  });
 }
+
+if (testCentralConnectionBtn && centralIpInput) {
+  testCentralConnectionBtn.addEventListener("click", async () => {
+    const ip = normalizeText(
+      centralIpInput.value || getCentralIp(),
+    );
+
+    if (!ip) {
+      setMessage(
+        "centralIpMsg",
+        "Ingresá la IP de la central.",
+        "error",
+      );
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://${ip}:3000`);
+
+      if (!response.ok) {
+        throw new Error("Sin conexión");
+      }
+
+      saveCentralIp(ip);
+
+      setMessage(
+        "centralIpMsg",
+        "Conexión con central OK.",
+        "success",
+      );
+    } catch {
+      setMessage(
+        "centralIpMsg",
+        "No se pudo conectar con la central.",
+        "error",
+      );
+    }
+  });
+}
+
+if (closeControlBtn) {
+  closeControlBtn.addEventListener("click", () => {
+    const currentControl = getCurrentControl();
+
+    if (!currentControl) {
+      setScanMessage(
+        "No hay auditoría activa para cerrar.",
+        "error",
+      );
+      return;
+    }
+
+    const savedControl = closeCurrentControl();
+
+    if (savedControl) {
+      setScanMessage(
+        "Auditoría cerrada y guardada en historial.",
+        "success",
+      );
+
+      renderCurrentControlInfo();
+    }
+
+    input.focus();
+  });
+}
+}
+
 // =========================
 // SERVICE WORKER / ACTUALIZACIONES
 // =========================
