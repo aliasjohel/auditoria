@@ -14,6 +14,7 @@ const STORAGE_KEYS = {
   teamName: "teamName",
   controls: "controls",
   currentControl: "currentControl",
+  centralIp: "centralIp",
 };
 
 const protectedPages = [
@@ -186,6 +187,14 @@ function resetAuditData() {
   saveProducts(products);
   saveZoneProgress([]);
   clearLastScan();
+}
+
+function getCentralIp() {
+  return localStorage.getItem(STORAGE_KEYS.centralIp) || "";
+}
+
+function saveCentralIp(ip) {
+  localStorage.setItem(STORAGE_KEYS.centralIp, ip);
 }
 
 // =========================
@@ -1722,7 +1731,7 @@ function importTeamCountsFiles(files) {
 
 async function clearCentralData() {
   const confirmed = confirm(
-    "¿Seguro que querés borrar todos los conteos de la central?"
+    "¿Seguro que querés borrar todos los conteos de la central?",
   );
 
   if (!confirmed) return;
@@ -1751,11 +1760,10 @@ async function clearCentralData() {
 
 async function loadWifiCentralData() {
   const faltantesBox = document.getElementById("faltantesList");
-const sobrantesBox = document.getElementById("sobrantesList");
-const correctosBox = document.getElementById("correctosList");
+  const sobrantesBox = document.getElementById("sobrantesList");
+  const correctosBox = document.getElementById("correctosList");
 
-if (!faltantesBox || !sobrantesBox || !correctosBox) return;
-  
+  if (!faltantesBox || !sobrantesBox || !correctosBox) return;
 
   try {
     const response = await fetch(`/api/central-data?t=${Date.now()}`, {
@@ -1786,12 +1794,9 @@ if (!faltantesBox || !sobrantesBox || !correctosBox) return;
         const current = aggregate.get(code);
         current.stockReal += toPositiveInt(item.stockReal);
 
-        Object.entries(item.countsByZone || {}).forEach(
-  ([zone, qty]) => {
-    current.countsByZone[zone] =
-      (current.countsByZone[zone] || 0) + qty;
-  },
-);
+        Object.entries(item.countsByZone || {}).forEach(([zone, qty]) => {
+          current.countsByZone[zone] = (current.countsByZone[zone] || 0) + qty;
+        });
 
         if (payload?.teamName) {
           current.teams.add(payload.teamName);
@@ -1799,14 +1804,18 @@ if (!faltantesBox || !sobrantesBox || !correctosBox) return;
       }
     }
 
-    const searchTerm = normalizeText(document.getElementById("centralSearch")?.value).toLowerCase();
+    const searchTerm = normalizeText(
+      document.getElementById("centralSearch")?.value,
+    ).toLowerCase();
 
-const consolidated = [...aggregate.values()].filter((item) => {
-  const name = String(item.name || "").toLowerCase();
-  const code = String(item.code || "").toLowerCase();
+    const consolidated = [...aggregate.values()].filter((item) => {
+      const name = String(item.name || "").toLowerCase();
+      const code = String(item.code || "").toLowerCase();
 
-  return !searchTerm || name.includes(searchTerm) || code.includes(searchTerm);
-});
+      return (
+        !searchTerm || name.includes(searchTerm) || code.includes(searchTerm)
+      );
+    });
 
     let faltantesCount = 0;
     let faltantesUnits = 0;
@@ -1825,29 +1834,29 @@ const consolidated = [...aggregate.values()].filter((item) => {
     }
     consolidated.sort((a, b) => a.code.localeCompare(b.code));
 
-   const faltantes = [];
-const sobrantes = [];
-const correctos = [];
+    const faltantes = [];
+    const sobrantes = [];
+    const correctos = [];
 
-consolidated.forEach((item) => {
-  const diff = item.stockReal - item.stockTeorico;
-  const diffClass = getDiffClass(diff);
+    consolidated.forEach((item) => {
+      const diff = item.stockReal - item.stockTeorico;
+      const diffClass = getDiffClass(diff);
 
-  if (diff < 0) {
-  faltantesCount++;
-  faltantesUnits += Math.abs(diff);
-}
+      if (diff < 0) {
+        faltantesCount++;
+        faltantesUnits += Math.abs(diff);
+      }
 
-if (diff > 0) {
-  sobrantesCount++;
-  sobrantesUnits += diff;
-}
+      if (diff > 0) {
+        sobrantesCount++;
+        sobrantesUnits += diff;
+      }
 
-  const zonesHtml = Object.entries(item.countsByZone || {})
-    .map(([zone, qty]) => `${zone} → ${qty}`)
-    .join("<br>");
+      const zonesHtml = Object.entries(item.countsByZone || {})
+        .map(([zone, qty]) => `${zone} → ${qty}`)
+        .join("<br>");
 
-  const html = `
+      const html = `
     <div class="product-item ${diffClass}">
       <strong>${escapeHtml(item.name)}</strong><br>
       Código: ${escapeHtml(item.code)}<br>
@@ -1860,26 +1869,24 @@ if (diff > 0) {
     </div>
   `;
 
-  if (diff < 0) {
-    faltantes.push(html);
-  } else if (diff > 0) {
-    sobrantes.push(html);
-  } else {
-    correctos.push(html);
-  }
-});
+      if (diff < 0) {
+        faltantes.push(html);
+      } else if (diff > 0) {
+        sobrantes.push(html);
+      } else {
+        correctos.push(html);
+      }
+    });
 
-faltantesBox.innerHTML =
-  faltantes.join("") ||
-  "<p class='placeholder-text'>No hay faltantes.</p>";
+    faltantesBox.innerHTML =
+      faltantes.join("") || "<p class='placeholder-text'>No hay faltantes.</p>";
 
-sobrantesBox.innerHTML =
-  sobrantes.join("") ||
-  "<p class='placeholder-text'>No hay sobrantes.</p>";
+    sobrantesBox.innerHTML =
+      sobrantes.join("") || "<p class='placeholder-text'>No hay sobrantes.</p>";
 
-correctosBox.innerHTML =
-  correctos.join("") ||
-  "<p class='placeholder-text'>No hay productos correctos.</p>";
+    correctosBox.innerHTML =
+      correctos.join("") ||
+      "<p class='placeholder-text'>No hay productos correctos.</p>";
 
     setText("faltantesCount", String(faltantesCount));
     setText("faltantesUnits", String(faltantesUnits));
@@ -1983,8 +1990,15 @@ async function sendTeamCountsToCentral() {
     products,
   };
 
+  const centralIp = getCentralIp();
+
+  if (!centralIp) {
+    setMessage("syncMsg", "Guardá primero la IP de la central.", "error");
+    return;
+  }
+
   try {
-    const response = await fetch("http://192.168.100.124:3000/sync", {
+    const response = await fetch(`http://${centralIp}:3000/sync`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -2129,16 +2143,16 @@ function setupCentralPage() {
   const exportExcelBtn = document.getElementById("exportExcelBtn");
 
   if (exportExcelBtn) {
-  exportExcelBtn.addEventListener("click", () => {
-    window.open("/api/export-excel", "_blank");
-  });
-}
-  
+    exportExcelBtn.addEventListener("click", () => {
+      window.open("/api/export-excel", "_blank");
+    });
+  }
+
   if (centralSearch) {
-  centralSearch.addEventListener("input", () => {
-    loadWifiCentralData();
-  });
-}
+    centralSearch.addEventListener("input", () => {
+      loadWifiCentralData();
+    });
+  }
   if (!importTeamCountsBtn || !teamCountFileInput) return;
   if (clearCentralBtn) {
     clearCentralBtn.addEventListener("click", clearCentralData);
@@ -2173,6 +2187,11 @@ function setupScanPage() {
   const adjustSearch = document.getElementById("adjustSearch");
   const addQtyBtn = document.getElementById("addQtyBtn");
   const subtractQtyBtn = document.getElementById("subtractQtyBtn");
+  const centralIpInput = document.getElementById("centralIp");
+  const saveCentralIpBtn = document.getElementById("saveCentralIpBtn");
+  const testCentralConnectionBtn = document.getElementById(
+    "testCentralConnectionBtn",
+  );
 
   renderCurrentZone();
   renderZoneProgress();
@@ -2184,6 +2203,10 @@ function setupScanPage() {
 
   if (teamNameInput) {
     teamNameInput.value = getTeamName();
+  }
+
+  if (centralIpInput) {
+    centralIpInput.value = getCentralIp();
   }
 
   if (adjustSearch) {
@@ -2338,6 +2361,46 @@ function setupScanPage() {
       if (savedControl) {
         setScanMessage("Auditoría cerrada y guardada en historial.", "success");
         renderCurrentControlInfo();
+      }
+
+      if (saveCentralIpBtn && centralIpInput) {
+        saveCentralIpBtn.addEventListener("click", () => {
+          const ip = normalizeText(centralIpInput.value);
+
+          if (!ip) {
+            setMessage("centralIpMsg", "Ingresá la IP de la central.", "error");
+            return;
+          }
+
+          saveCentralIp(ip);
+          setMessage("centralIpMsg", "IP de central guardada.", "success");
+        });
+      }
+
+      if (testCentralConnectionBtn && centralIpInput) {
+        testCentralConnectionBtn.addEventListener("click", async () => {
+          const ip = normalizeText(centralIpInput.value || getCentralIp());
+
+          if (!ip) {
+            setMessage("centralIpMsg", "Ingresá la IP de la central.", "error");
+            return;
+          }
+
+          try {
+            const response = await fetch(`http://${ip}:3000`);
+
+            if (!response.ok) throw new Error("Sin conexión");
+
+            saveCentralIp(ip);
+            setMessage("centralIpMsg", "Conexión con central OK.", "success");
+          } catch {
+            setMessage(
+              "centralIpMsg",
+              "No se pudo conectar con la central.",
+              "error",
+            );
+          }
+        });
       }
     });
   }

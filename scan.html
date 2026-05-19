@@ -1,13 +1,15 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Escanear</title>
   <link rel="stylesheet" href="style.css">
   <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#0d6efd">
+  <meta name="theme-color" content="#0d6efd">
 </head>
+
 <body>
 
   <div class="navbar">
@@ -19,13 +21,13 @@
   </div>
 
   <div class="card page-card">
-  <h3>Auditoría activa</h3>
-  <p id="currentControlInfo" class="subtitle">Sin auditoría activa</p>
-  <p id="currentControlExtra" class="info-msg"></p>
-  <div class="scan-actions">
-    <button id="closeControlBtn" type="button" class="secondary-btn">Cerrar auditoría y guardar en historial</button>
+    <h3>Auditoría activa</h3>
+    <p id="currentControlInfo" class="subtitle">Sin auditoría activa</p>
+    <p id="currentControlExtra" class="info-msg"></p>
+    <div class="scan-actions">
+      <button id="closeControlBtn" type="button" class="secondary-btn">Cerrar auditoría y guardar en historial</button>
+    </div>
   </div>
-</div>
 
   <div class="page">
     <div class="card page-card">
@@ -87,21 +89,21 @@
     <div class="card page-card mt-20">
 
       <div class="card page-card mt-20">
-  <h3>Ajuste manual por cantidad</h3>
+        <h3>Ajuste manual por cantidad</h3>
 
-  <input type="text" id="adjustSearch" placeholder="Buscar producto por nombre o código">
+        <input type="text" id="adjustSearch" placeholder="Buscar producto por nombre o código">
 
-  <div id="adjustResults" class="products-list"></div>
+        <div id="adjustResults" class="products-list"></div>
 
-  <input type="number" id="adjustQty" placeholder="Cantidad a ajustar" min="1">
+        <input type="number" id="adjustQty" placeholder="Cantidad a ajustar" min="1">
 
-  <div class="scan-actions">
-    <button id="addQtyBtn" type="button">Sumar cantidad</button>
-    <button id="subtractQtyBtn" type="button" class="danger-btn">Restar cantidad</button>
-  </div>
+        <div class="scan-actions">
+          <button id="addQtyBtn" type="button">Sumar cantidad</button>
+          <button id="subtractQtyBtn" type="button" class="danger-btn">Restar cantidad</button>
+        </div>
 
-  <p id="adjustMsg" class="info-msg"></p>
-</div>
+        <p id="adjustMsg" class="info-msg"></p>
+      </div>
 
       <h3>Resumen de conteo</h3>
       <div id="scanSummary" class="products-list"></div>
@@ -112,7 +114,21 @@
 
       <label class="field-label" for="teamName">Nombre del equipo</label>
       <input type="text" id="teamName" placeholder="Ej: Equipo 1">
-      
+      <label class="field-label" for="centralIp">IP de la central</label>
+      <input type="text" id="centralIp" placeholder="Ej: 192.168.100.124">
+
+      <div class="scan-actions">
+        <button id="saveCentralIpBtn" type="button" class="secondary-btn">
+          Guardar IP
+        </button>
+
+        <button id="testCentralConnectionBtn" type="button" class="secondary-btn">
+          Probar conexión
+        </button>
+      </div>
+
+      <p id="centralIpMsg" class="info-msg"></p>
+
 
       <div class="scan-actions">
         <button id="saveTeamBtn" type="button" class="secondary-btn">Guardar nombre de equipo</button>
@@ -121,10 +137,10 @@
       </div>
 
       <button id="sendToCentralBtn" type="button">
-  Enviar conteo a central Wi-Fi
-</button>
+        Enviar conteo a central Wi-Fi
+      </button>
 
-<p id="syncMsg" class="info-msg"></p>
+      <p id="syncMsg" class="info-msg"></p>
 
       <p id="teamMsg" class="info-msg"></p>
     </div>
@@ -146,4 +162,5 @@
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="app.js"></script>
 </body>
+
 </html>
