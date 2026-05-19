@@ -2345,6 +2345,25 @@ function setupScanPage() {
     clearLocalCountsBtn.addEventListener("click", clearLocalCounts);
   }
 
+  if (saveCentralIpBtn && centralIpInput) {
+        saveCentralIpBtn.addEventListener("click", () => {
+          const ip = normalizeText(centralIpInput.value);
+
+          if (!ip) {
+            setMessage("centralIpMsg", "Ingresá la IP de la central.", "error");
+            return;
+          }
+
+          if (testCentralConnectionBtn && centralIpInput) {
+        testCentralConnectionBtn.addEventListener("click", async () => {
+          const ip = normalizeText(centralIpInput.value || getCentralIp());
+
+          if (!ip) {
+            setMessage("centralIpMsg", "Ingresá la IP de la central.", "error");
+            return;
+          }
+
+
   if (closeControlBtn) {
     closeControlBtn.addEventListener("click", () => {
       const currentControl = getCurrentControl();
@@ -2361,29 +2380,14 @@ function setupScanPage() {
         renderCurrentControlInfo();
       }
 
-      if (saveCentralIpBtn && centralIpInput) {
-        saveCentralIpBtn.addEventListener("click", () => {
-          const ip = normalizeText(centralIpInput.value);
-
-          if (!ip) {
-            setMessage("centralIpMsg", "Ingresá la IP de la central.", "error");
-            return;
-          }
+      
 
           saveCentralIp(ip);
           setMessage("centralIpMsg", "IP de central guardada.", "success");
         });
       }
 
-      if (testCentralConnectionBtn && centralIpInput) {
-        testCentralConnectionBtn.addEventListener("click", async () => {
-          const ip = normalizeText(centralIpInput.value || getCentralIp());
-
-          if (!ip) {
-            setMessage("centralIpMsg", "Ingresá la IP de la central.", "error");
-            return;
-          }
-
+      
           try {
             const response = await fetch(`http://${ip}:3000`);
 
