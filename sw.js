@@ -1,4 +1,4 @@
-const CACHE_NAME = "control-stock-v1.0.40";
+const CACHE_NAME = "control-stock-v1.0.41";
 const APP_SHELL = [
   "./",
   "./index.html",

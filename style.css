@@ -232,9 +232,14 @@ button:active {
 /* PRODUCTOS */
 /* ========================= */
 .products-list {
-  margin-top: 15px;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 10px;
+
+  max-height: 420px;
+  overflow-y: auto;
+
+  padding-right: 6px;
 }
 
 .product-item {
