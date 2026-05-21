@@ -1828,9 +1828,12 @@ async function loadWifiCentralData() {
       setText("sobrantesCount", "0");
       setText("sobrantesUnits", "0");
 
-      box.innerHTML =
-        "<p class='placeholder-text'>Todavía no hay conteos recibidos por Wi-Fi.</p>";
-      return;
+    faltantesBox.innerHTML =
+  "<p class='placeholder-text'>Todavía no hay conteos recibidos por Wi-Fi.</p>";
+
+sobrantesBox.innerHTML = "";
+correctosBox.innerHTML = "";
+return;
     }
     consolidated.sort((a, b) => a.code.localeCompare(b.code));
 
@@ -1893,10 +1896,14 @@ async function loadWifiCentralData() {
     setText("sobrantesCount", String(sobrantesCount));
     setText("sobrantesUnits", String(sobrantesUnits));
   } catch (error) {
-    console.error("Error cargando central Wi-Fi:", error);
-    box.innerHTML =
-      "<p class='error-msg'>No se pudieron cargar los datos Wi-Fi.</p>";
-  }
+  console.error("Error cargando central Wi-Fi:", error);
+
+  faltantesBox.innerHTML =
+    "<p class='error-msg'>No se pudieron cargar los datos Wi-Fi.</p>";
+
+  sobrantesBox.innerHTML = "";
+  correctosBox.innerHTML = "";
+}
 }
 
 function renderCentralSummary(teamPayloads) {
