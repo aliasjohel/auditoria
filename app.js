@@ -2389,7 +2389,7 @@ if (testCentralConnectionBtn && centralIpInput) {
     }
 
     try {
-      const response = await fetch(`http://${ip}:3000`);
+      const response = await fetch(`http://${ip}:3000/files`);
 
       if (!response.ok) {
         throw new Error("Sin conexión");
